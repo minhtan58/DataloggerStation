@@ -14,20 +14,17 @@
 void appProcessCommand(uint8_t *pInputData);
 void appStartRountine(void);
 
-/* data */
-volatile float fAnalogDataList[12];
-volatile float fDigitalDataList[6];
-
 /* structure to store configure data */
-extern tsOverview overview;
-extern tsSetting setting;
-extern tsAnalogSensor analogSettingList[12];
-extern tsDigitalSensor digitalSettingList[6];
-extern tsConfig_SerialSensor serialSettingList[6];
-extern tsTransmission transmission;
-extern tsCellular cellular;
-extern tsVirtualSensor virtualSensorList[15];
+tsOverview overview;
+tsSetting setting;
+tsAnalogSensor analogSettingList[12];
+tsDigitalSensor digitalSettingList[6];
+tsConfig_SerialSensor serialSettingList[6];
+tsTransmission transmission;
+tsCellular cellular;
+tsVirtualSensor virtualSensorList[15];
 
-uint8_t u8SorttingChannel[50];
+//uint8_t u8SorttingChannel[50];
+tsSort sSortting[50];
 
 #endif /* SERIALPORTCOM_COMMAND_PROCESS_H_ */

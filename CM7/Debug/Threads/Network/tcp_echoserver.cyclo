@@ -1,0 +1,8 @@
+tcp_echoserver.c:83:6:tcp_echoserver_init	3
+tcp_echoserver.c:118:14:tcp_echoserver_accept	2
+tcp_echoserver.c:171:14:tcp_echoserver_recv	10
+tcp_echoserver.c:278:13:tcp_echoserver_error	2
+tcp_echoserver.c:298:14:tcp_echoserver_poll	4
+tcp_echoserver.c:338:14:tcp_echoserver_sent	3
+tcp_echoserver.c:369:13:tcp_echoserver_send	8
+tcp_echoserver.c:429:13:tcp_echoserver_connection_close	2

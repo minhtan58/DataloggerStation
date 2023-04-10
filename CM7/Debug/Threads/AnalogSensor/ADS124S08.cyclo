@@ -1,0 +1,7 @@
+ADS124S08.c:13:13:spi_wr_data	1
+ADS124S08.c:18:9:regRead	1
+ADS124S08.c:46:6:WriteReg	1
+ADS124S08.c:69:6:sendCommand	1
+ADS124S08.c:84:10:dataRead	1
+ADS124S08.c:120:9:InitDevice_ADC	3
+ADS124S08.c:170:8:Getdata_ADC	1

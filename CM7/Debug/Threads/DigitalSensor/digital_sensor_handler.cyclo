@@ -1,0 +1,8 @@
+digital_sensor_handler.c:43:6:Digital_setup	3
+digital_sensor_handler.c:60:7:Get_DigitalData	3
+digital_sensor_handler.c:75:6:Digital_Callback1	2
+digital_sensor_handler.c:84:6:Digital_Callback2	2
+digital_sensor_handler.c:93:6:Digital_Callback3	2
+digital_sensor_handler.c:102:6:Digital_Callback4	2
+digital_sensor_handler.c:111:6:DigitalSensor_Task	1
+digital_sensor_handler.c:163:6:HAL_TIM_IC_CaptureCallback	21

@@ -17,6 +17,9 @@
 #include "sdcard.h"
 #include "sensor_process.h"
 #include "lwip.h"
+#include "ftplib.h"
+#include "tcp_echoclient.h"
+#include "stm32h7xx_hal.h"
 /****************************************************************************/
 /***    Local Function Prototypes                     ***/
 /****************************************************************************/
@@ -41,6 +44,7 @@ static void appGetDataSequence(void);
 static void appCellularStatus(void);
 static void appSortStatus(void);
 static void appLogExport(void);
+static void setTimeFromString(char *s, RTC_DateTypeDef *sDate, RTC_TimeTypeDef *sTime);
 
 /****************************************************************************/
 /***    Local Variables                           ***/
@@ -57,14 +61,15 @@ tsConfig_SerialSensor serialSettingList[6];
 tsTransmission transmission;
 tsCellular cellular;
 tsVirtualSensor virtualSensorList[15];
-uint8_t u8SorttingChannel[50];
+//uint8_t u8SorttingChannel[50];
 
 extern FIL myfile;
 extern FATFS FatFs;
-
-RTC_TimeTypeDef sTimeSys;
+extern UINT br, bw;
 
 extern RTC_HandleTypeDef hrtc;
+extern RTC_TimeTypeDef sTimeSys;
+extern RTC_DateTypeDef sDateSys;
 extern osTimerId periodicTimerHandle[12];
 extern osTimerId periodicSerialTimer[6];
 
@@ -76,8 +81,10 @@ extern uint8_t IP_ADDRESS[4];
 extern uint8_t NETMASK_ADDRESS[4];
 extern uint8_t GATEWAY_ADDRESS[4];
 
-char *context=NULL;
+extern TIM_HandleTypeDef htim2;
 
+char *context=NULL;
+uint8_t sortting[COMMAND_BUF_SIZE];
 /****************************************************************************/
 /***    Implementation                          */
 /****************************************************************************/
@@ -85,22 +92,24 @@ char *context=NULL;
 void appStartRountine(void)
 {
     // create new file
-//    f_mount(&FatFs,"",1);
-//    if (f_open(&myfile, fileConfig, FA_CREATE_ALWAYS|FA_READ|FA_WRITE) == FR_OK) {
-//        printf("Create new file ok\r\n");
-//    } else {
-//        printf("Create new file error\r\n");
-//    }
+    f_mount(&FatFs,"",1);
+    if (f_open(&myfile, fileConfig, FA_CREATE_ALWAYS|FA_READ|FA_WRITE) == FR_OK) {
+        printf("Create new file ok\r\n");
+    } else {
+        printf("Create new file error\r\n");
+    }
 //    f_close(&myfile);
 //    f_mount(&FatFs,"",0);
 
-    fAnalogDataList[0] = 0.39;
+
     /* Init overview info */
     strcpy((char*)overview.modelName, "DSL-21");
     strcpy((char*)overview.serialNumber, "SR6868");
     strcpy((char*)overview.firmwareVer, "REV 1.1");
     strcpy((char*)overview.macAddress, "AA:BB:CC:DD:EE:FF");
     strcpy((char*)overview.batteryVolt, "12V");
+	f_lseek(&myfile, BASE_ADD_OVERVIEW);
+	f_write(&myfile, &overview, sizeof(tsOverview), &bw);
 //    HME_WriteMemory(fileConfig, &overview, sizeof(tsOverview), BASE_ADD_OVERVIEW);
     HAL_Delay(10);
 
@@ -108,10 +117,23 @@ void appStartRountine(void)
     strcpy((char*)setting.stationName, "HaNoi");
     strcpy((char*)setting.stationID, "2930");
     strcpy((char*)setting.dateTime, "2022/01/01 00:00:00");
-    strcpy((char*)setting.ipAddress, "172.36.17.88");
+    strcpy((char*)setting.ipAddress, "192.168.2.123");
     strcpy((char*)setting.subnetMask, "255.255.255.0");
-    strcpy((char*)setting.gateway, "172.36.17.1");
+    strcpy((char*)setting.gateway, "192.168.2.204");
     strcpy((char*)setting.history, "2022/01/01 00:00:00");
+
+//    GetIPConverted(&setting.ipAddress[0], &IP_ADDRESS[0]);
+//    GetIPConverted(&setting.subnetMask[0], &NETMASK_ADDRESS[0]);
+//    GetIPConverted(&setting.gateway[0], &GATEWAY_ADDRESS[0]);
+//    IP4_ADDR(&ipaddr, IP_ADDRESS[0], IP_ADDRESS[1], IP_ADDRESS[2], IP_ADDRESS[3]);
+//    IP4_ADDR(&netmask, NETMASK_ADDRESS[0], NETMASK_ADDRESS[1] , NETMASK_ADDRESS[2], NETMASK_ADDRESS[3]);
+//    IP4_ADDR(&gw, GATEWAY_ADDRESS[0], GATEWAY_ADDRESS[1], GATEWAY_ADDRESS[2], GATEWAY_ADDRESS[3]);
+//    netif_set_ipaddr(&gnetif, &ipaddr);
+//    netif_set_netmask(&gnetif, &netmask);
+//    netif_set_gw(&gnetif, &gw);
+
+	f_lseek(&myfile, BASE_ADD_SYSTEM);
+	f_write(&myfile, &setting, sizeof(tsSetting), &bw);
 //    HME_WriteMemory(fileConfig, &setting, sizeof(tsSetting), BASE_ADD_SYSTEM);
     HAL_Delay(10);
 
@@ -120,8 +142,7 @@ void appStartRountine(void)
 
     for (u8Index = 0; u8Index < 12; u8Index++)
     {
-        sprintf((char*)u8Channel, "AI%d", u8Index+1);
-        strcpy((char*)analogSettingList[u8Index].channel, (char*)u8Channel);
+        snprintf((char*)&analogSettingList[u8Index].channel[0], 6, "AI%d", u8Index+1);
         strcpy((char*)analogSettingList[u8Index].name, "Analog");
         strcpy((char*)analogSettingList[u8Index].status, "Disabled");
         strcpy((char*)analogSettingList[u8Index].inputRange, "0 - 1 VDC");
@@ -131,6 +152,10 @@ void appStartRountine(void)
         strcpy((char*)analogSettingList[u8Index].rightDigit, "0");
         strcpy((char*)analogSettingList[u8Index].unit, "m");
         strcpy((char*)analogSettingList[u8Index].history, "2022/01/01 00:00:00");
+        analogSettingList[u8Index].value = 1.2345;
+
+    	f_lseek(&myfile, BASE_ADD_ANALOG + (u8Index*SIZE_ANALOG_T));
+    	f_write(&myfile, &analogSettingList[u8Index], sizeof(tsAnalogSensor), &bw);
 //        HME_WriteMemory(fileConfig, &analogSettingList[u8Index], sizeof(tsAnalogSensor), BASE_ADD_ANALOG + (u8Index*SIZE_ANALOG_T));
         HAL_Delay(10);
     }
@@ -138,8 +163,7 @@ void appStartRountine(void)
     /* Init digital info */
     for (u8Index = 0; u8Index < 6; u8Index++)
     {
-        sprintf((char*)u8Channel, "DI%d", u8Index+1);
-        strcpy((char*)digitalSettingList[u8Index].channel, (char*)u8Channel);
+        snprintf((char*)&digitalSettingList[u8Index].channel[0], 6, "DI%d", u8Index+1);
         strcpy((char*)digitalSettingList[u8Index].name, "Digital");
         strcpy((char*)digitalSettingList[u8Index].status, "Disabled");
         strcpy((char*)digitalSettingList[u8Index].mode, "Counter");
@@ -149,6 +173,10 @@ void appStartRountine(void)
         strcpy((char*)digitalSettingList[u8Index].rightDigit, "0");
         strcpy((char*)digitalSettingList[u8Index].unit, "m");
         strcpy((char*)digitalSettingList[u8Index].history, "2022/01/01 00:00:00");
+        digitalSettingList[u8Index].value = 0.0;
+
+    	f_lseek(&myfile, BASE_ADD_DIGITAL + (u8Index*SIZE_DIGITAL_T));
+    	f_write(&myfile, &digitalSettingList[u8Index], sizeof(tsDigitalSensor), &bw);
 //        HME_WriteMemory(fileConfig, &digitalSettingList[u8Index], sizeof(tsDigitalSensor), BASE_ADD_DIGITAL + (u8Index*SIZE_DIGITAL_T));
         HAL_Delay(10);
     }
@@ -157,11 +185,11 @@ void appStartRountine(void)
     for (u8Index = 0; u8Index < 6; u8Index++)
     {
         if (u8Index < 4) {
-            sprintf((char*)u8Channel, "COM%d", u8Index+1);
+            snprintf((char*)u8Channel, 8, "COM%d", u8Index+1);
         } else if (u8Index == 4) {
-            sprintf((char*)u8Channel, "RS485");
+            snprintf((char*)u8Channel, 8, "RS485");
         } else if (u8Index == 5) {
-            sprintf((char*)u8Channel, "SDI-12");
+            snprintf((char*)u8Channel, 8, "SDI-12");
         }
 
         strcpy((char*)serialSettingList[u8Index].channel, (char*)u8Channel);
@@ -179,6 +207,9 @@ void appStartRountine(void)
         strcpy((char*)serialSettingList[u8Index].unit, "mm");
         strcpy((char*)serialSettingList[u8Index].dataSequence, "N/A=1=m");
         strcpy((char*)serialSettingList[u8Index].history, "2022/01/01 00:00:00");
+
+    	f_lseek(&myfile, BASE_ADD_SERIAL + (u8Index*SIZE_SERIAL_T));
+    	f_write(&myfile, &serialSettingList[u8Index], sizeof(tsConfig_SerialSensor), &bw);
 //        HME_WriteMemory(fileConfig, &serialSettingList[u8Index], sizeof(tsConfig_SerialSensor), BASE_ADD_SERIAL + (u8Index*SIZE_SERIAL_T));
         HAL_Delay(10);
     }
@@ -194,6 +225,10 @@ void appStartRountine(void)
     strcpy((char*)transmission.headerInterval, "2");
     strcpy((char*)transmission.tcp_ip, "80");
     strcpy((char*)transmission.history, "2022/01/01 00:00:00");
+    Config_Ftp();
+
+	f_lseek(&myfile, BASE_ADD_TRANSMISSION);
+	f_write(&myfile, &transmission, sizeof(tsTransmission), &bw);
 //    HME_WriteMemory(fileConfig, &transmission, sizeof(tsTransmission), BASE_ADD_TRANSMISSION);
     HAL_Delay(10);
 
@@ -207,19 +242,23 @@ void appStartRountine(void)
     strcpy((char*)cellular.ipV4, "27.72.56.21");
     strcpy((char*)cellular.signalLevel, "Strong");
     strcpy((char*)cellular.history, "2022/01/01 00:00:00");
+
+	f_lseek(&myfile, BASE_ADD_CELLULAR);
+	f_write(&myfile, &cellular, sizeof(tsCellular), &bw);
 //    HME_WriteMemory(fileConfig, &cellular, sizeof(tsCellular), BASE_ADD_CELLULAR);
     HAL_Delay(10);
 
     /* Init sort channel info */
-    strcpy((char*)u8SorttingChannel, "DI2&0&1;AI1&0&2;COM1&2&3");
+//    strcpy((char*)u8SorttingChannel, "DI2&0&1;AI1&0&2;COM1&2&3");
+	f_lseek(&myfile, BASE_ADD_CHANNEL_SORT);
+	f_write(&myfile, (char*)"DI2&0&1;AI1&0&2;COM1&2&3", COMMAND_BUF_SIZE, &bw);
 //    HME_WriteMemory(fileConfig, &u8SorttingChannel, sizeof(char)*50, BASE_ADD_CHANNEL_SORT);
     HAL_Delay(10);
 
     /* Init virtual sensor info */
     for (u8Index = 0; u8Index < 15; u8Index++)
     {
-        sprintf((char*)u8Channel, "VS%d", u8Index+1);
-        strcpy((char*)virtualSensorList[u8Index].channel, (char*)u8Channel);
+        snprintf((char*)&virtualSensorList[u8Index].channel[0], 6, "VS%d", u8Index+1);
         strcpy((char*)virtualSensorList[u8Index].name, "NA");
         strcpy((char*)virtualSensorList[u8Index].status, "Disabled");
         strcpy((char*)virtualSensorList[u8Index].vsType, "1");
@@ -228,11 +267,18 @@ void appStartRountine(void)
         strcpy((char*)virtualSensorList[u8Index].inputSensor2, "AI2");
         strcpy((char*)virtualSensorList[u8Index].index2, "0");
         strcpy((char*)virtualSensorList[u8Index].startTime, "00:00:00");
+        strcpy((char*)virtualSensorList[u8Index].interval, "0");
         strcpy((char*)virtualSensorList[u8Index].sensorHeight, "0");
         strcpy((char*)virtualSensorList[u8Index].dataSequence, "NA=NA=NA");
+
+    	f_lseek(&myfile, BASE_ADD_VIRTUAL + (u8Index*SIZE_VIRTUAL_T));
+    	f_write(&myfile, &virtualSensorList[u8Index], sizeof(tsVirtualSensor), &bw);
 //        HME_WriteMemory(fileConfig, &virtualSensorList[u8Index], sizeof(tsVirtualSensor), BASE_ADD_VIRTUAL + (u8Index*SIZE_VIRTUAL_T));
         HAL_Delay(10);
     }
+
+    f_close(&myfile);
+    f_mount(&FatFs,"",0);
 }
 
 void appProcessCommand(uint8_t *pInputData)
@@ -328,17 +374,23 @@ void appProcessCommand(uint8_t *pInputData)
 
 static void appLogin(void)
 {
-    HAL_UART_Transmit(&huart3, (uint8_t*)"OK!", 3, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"OK!", 3, HAL_MAX_DELAY);
 }
 
 static void appOverView(void)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!", &overview.modelName[0], &setting.stationName[0],\
+	HAL_RTC_GetTime(&hrtc,&sTimeSys,RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc,&sDateSys,RTC_FORMAT_BIN);
+    sprintf((char*)respone, "%d/%d/%d %02d:%02d:%02d", sDateSys.Year, sDateSys.Month, sDateSys.Date,\
+    		                                           sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
+    strcpy(setting.dateTime, (char*)respone);
+
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!", &overview.modelName[0], &setting.stationName[0],\
             &setting.stationID[0], &overview.serialNumber[0], &overview.firmwareVer[0], &overview.macAddress[0],\
             &setting.ipAddress[0], &setting.subnetMask[0], &setting.gateway[0], &overview.batteryVolt[0], &setting.dateTime[0]);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appSetting(void)
@@ -361,10 +413,16 @@ static void appSetting(void)
     token = strtok_r(NULL, delimiter, &context);
     strcpy(&setting.gateway[0], token);
     GetIPConverted(token, &GATEWAY_ADDRESS[0]);
-    sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-    strcpy(&setting.history[0], token);
-//    HME_WriteMemory(fileConfig, &setting, sizeof(tsSetting), BASE_ADD_SYSTEM);
+    snprintf(&setting.history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
+    if (FR_OK != HME_WriteMemory(fileConfig, &setting, sizeof(tsSetting), BASE_ADD_SYSTEM))
+    	Error_Handler();
 
+    // copy and set datetime follow setting parameter
+    setTimeFromString(&setting.dateTime[0], &sDateSys, &sTimeSys);
+
+    GetIPConverted(&setting.ipAddress[0], &IP_ADDRESS[0]);
+    GetIPConverted(&setting.subnetMask[0], &NETMASK_ADDRESS[0]);
+    GetIPConverted(&setting.gateway[0], &GATEWAY_ADDRESS[0]);
     IP4_ADDR(&ipaddr, IP_ADDRESS[0], IP_ADDRESS[1], IP_ADDRESS[2], IP_ADDRESS[3]);
     IP4_ADDR(&netmask, NETMASK_ADDRESS[0], NETMASK_ADDRESS[1] , NETMASK_ADDRESS[2], NETMASK_ADDRESS[3]);
     IP4_ADDR(&gw, GATEWAY_ADDRESS[0], GATEWAY_ADDRESS[1], GATEWAY_ADDRESS[2], GATEWAY_ADDRESS[3]);
@@ -372,7 +430,7 @@ static void appSetting(void)
     netif_set_netmask(&gnetif, &netmask);
     netif_set_gw(&gnetif, &gw);
 
-    HAL_UART_Transmit(&huart3, (uint8_t*)"8_OK!", 5, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"8_OK!", 5, HAL_MAX_DELAY);
 }
 
 static void appAnalogSetting(void)
@@ -408,17 +466,17 @@ static void appAnalogSetting(void)
             strcpy((char*)analogSettingList[u8Index].rightDigit, token);
             token = strtok_r(NULL, delimiter, &context);
             strcpy((char*)analogSettingList[u8Index].unit, token);
-            sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-            strcpy((char*)analogSettingList[u8Index].history, token);
+            snprintf((char*)&analogSettingList[u8Index].history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
 
             if (analogSettingList[u8Index].status[0] == 'E')
                 osTimerStart(periodicTimerHandle[u8Index], atoi(analogSettingList[u8Index].interval)*1000);
             else
                 osTimerStop(periodicTimerHandle[u8Index]);
 
-//            HME_WriteMemory(fileConfig, &analogSettingList[u8Index], sizeof(tsAnalogSensor), BASE_ADD_ANALOG + (u8Index*SIZE_ANALOG_T));
+            if (FR_OK != HME_WriteMemory(fileConfig, &analogSettingList[u8Index], sizeof(tsAnalogSensor), BASE_ADD_ANALOG + (u8Index*SIZE_ANALOG_T)))
+            	Error_Handler();
             HAL_Delay(1);
-            HAL_UART_Transmit(&huart3, (uint8_t*)"91_OK!", 6, 100);
+            HAL_UART_Transmit(&huart3, (uint8_t*)"91_OK!", 6, HAL_MAX_DELAY);
             break;
         }
     }
@@ -455,12 +513,12 @@ static void appDigitalSetting(void)
             strcpy((char*)digitalSettingList[u8Index].rightDigit, token);
             token = strtok_r(NULL, delimiter, &context);
             strcpy((char*)digitalSettingList[u8Index].unit, token);
-            sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-            strcpy((char*)digitalSettingList[u8Index].history, token);
+            snprintf((char*)&digitalSettingList[u8Index].history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
 
-//            HME_WriteMemory(fileConfig, &digitalSettingList[u8Index], sizeof(tsDigitalSensor), BASE_ADD_DIGITAL + (u8Index*SIZE_DIGITAL_T));
+            if (FR_OK != HME_WriteMemory(fileConfig, &digitalSettingList[u8Index], sizeof(tsDigitalSensor), BASE_ADD_DIGITAL + (u8Index*SIZE_DIGITAL_T)))
+            	Error_Handler();
             HAL_Delay(1);
-            HAL_UART_Transmit(&huart3, (uint8_t*)"92_OK!", 6, 100);
+            HAL_UART_Transmit(&huart3, (uint8_t*)"92_OK!", 6, HAL_MAX_DELAY);
             break;
         }
     }
@@ -473,7 +531,7 @@ static void appSerialSetting(void)
     int j=0;
     char *token;
     char delimiter1[2] = ";";
-    char *sub_control[10];
+    char *sub_control[20];
     token = strtok_r(NULL, delimiter1, &context);
     /* Find serial channel corresponding */
     for (u8Index = 0; u8Index < 6; u8Index++)
@@ -510,8 +568,7 @@ static void appSerialSetting(void)
             strcpy((char*)serialSettingList[u8Index].dataSequence, token);
             char* dummy = strdup(token); // duplicate dataSequence to dump data
 
-            sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-            strcpy((char*)serialSettingList[u8Index].history, token);
+            snprintf((char*)&serialSettingList[u8Index].history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
 
             token = strtok_r(dummy, "&", &context);
 
@@ -535,6 +592,11 @@ static void appSerialSetting(void)
                 strcpy((char*)serialSettingList[u8Index].dataType[j].unit, token);
 //                printf(" %s\n\r", serialSettingList[u8Index].dataType[j].unit);
             }
+
+            if (FR_OK != HME_WriteMemory(fileConfig, &serialSettingList[u8Index], sizeof(tsConfig_SerialSensor), BASE_ADD_SERIAL + (u8Index*SIZE_SERIAL_T)))
+            	Error_Handler();
+            HAL_Delay(1);
+            HAL_UART_Transmit(&huart3, (uint8_t*)"9R_OK!", 6, HAL_MAX_DELAY);
             Setting_channel(u8Index);
 
             if (serialSettingList[u8Index].status[0] == 'E')
@@ -543,12 +605,14 @@ static void appSerialSetting(void)
                 osTimerStop(periodicSerialTimer[u8Index]);
 
 //            HME_WriteMemory(fileConfig, &serialSettingList[u8Index], sizeof(tsConfig_SerialSensor), BASE_ADD_SERIAL + (u8Index*SIZE_SERIAL_T));
-            HAL_Delay(1);
-            HAL_UART_Transmit(&huart3, (uint8_t*)"9R_OK!", 6, 100);
+//            HAL_Delay(1);
+//            HAL_UART_Transmit(&huart3, (uint8_t*)"9R_OK!", 6, HAL_MAX_DELAY);
             break;
         }
     }
 }
+
+extern osTimerId periodicNetworkTimer;
 
 static void appTransmissionSetting(void)
 {
@@ -574,12 +638,19 @@ static void appTransmissionSetting(void)
     strcpy(&transmission.headerInterval[0], token);
     token = strtok_r(NULL, delimiter, &context);
     strcpy(&transmission.tcp_ip[0], token);
-    sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-    strcpy((char*)transmission.history, token);
-
-//    HME_WriteMemory(fileConfig, &transmission, sizeof(tsTransmission), BASE_ADD_TRANSMISSION);
+    snprintf((char*)&transmission.history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
+    if (FR_OK != HME_WriteMemory(fileConfig, &transmission, sizeof(tsTransmission), BASE_ADD_TRANSMISSION))
+    	Error_Handler();
     HAL_Delay(1);
-    HAL_UART_Transmit(&huart3, (uint8_t*)"11_OK!", 6, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"11_OK!", 6, HAL_MAX_DELAY);
+
+    Config_Ftp();
+    //tcp_echoclient_connect();
+    //osTimerStop(periodicNetworkTimer);
+    //osTimerStart(periodicNetworkTimer, atoi(transmission.interval)*1000);
+//	HAL_TIM_Base_Start_IT(&htim2);
+	header_interval = atoi(transmission.headerInterval);
+	header_count = header_interval;
 }
 
 static void appCellularSetting(void)
@@ -592,24 +663,31 @@ static void appCellularSetting(void)
         strcpy(&cellular.cellularMode[0], "Enabled");
     else
         strcpy(&cellular.cellularMode[0], "Disabled");
-    sprintf(token, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
-    strcpy(&cellular.history[0], token);
-//    HME_WriteMemory(fileConfig, &cellular, sizeof(tsCellular), BASE_ADD_CELLULAR);
+    snprintf(&cellular.history[0], 20, "2023/02/28 %02d:%02d:%02d", sTimeSys.Hours, sTimeSys.Minutes, sTimeSys.Seconds);
+    if (FR_OK != HME_WriteMemory(fileConfig, &cellular, sizeof(tsCellular), BASE_ADD_CELLULAR))
+    	Error_Handler();
     HAL_Delay(1);
-    HAL_UART_Transmit(&huart3, (uint8_t*)"15_OK!", 6, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"15_OK!", 6, HAL_MAX_DELAY);
 }
 
 static void appSortSetting(void)
 {
     char *token;
     char delimiter[2] = "!";
+//    char u8Sortting[COMMAND_BUF_SIZE];
 
+    /*
     memset(&u8SorttingChannel[0], 0, 50);
     token = strtok_r(NULL, delimiter, &context);
     strcpy((char*)u8SorttingChannel, token);
-//    HME_WriteMemory(fileConfig, &u8SorttingChannel, sizeof(char)*50, BASE_ADD_CHANNEL_SORT);
+    HME_WriteMemory(fileConfig, &u8SorttingChannel, sizeof(char)*50, BASE_ADD_CHANNEL_SORT);
+    */
+    token = strtok_r(NULL, delimiter, &context);
+//    strcpy((char*)u8Sortting, token);
+    if (FR_OK != HME_WriteMemory(fileConfig, token, COMMAND_BUF_SIZE, BASE_ADD_CHANNEL_SORT))
+    	Error_Handler();
     HAL_Delay(1);
-    HAL_UART_Transmit(&huart3, (uint8_t*)"14_OK!", 6, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"14_OK!", 6, HAL_MAX_DELAY);
 }
 
 static void appVirtualSetting(void)
@@ -646,12 +724,15 @@ static void appVirtualSetting(void)
             token = strtok_r(NULL, delimiter, &context);
             strcpy((char*)virtualSensorList[u8Index].startTime, token);
             token = strtok_r(NULL, delimiter, &context);
+            strcpy((char*)virtualSensorList[u8Index].interval, token);
+            token = strtok_r(NULL, delimiter, &context);
             strcpy((char*)virtualSensorList[u8Index].sensorHeight, token);
             token = strtok_r(NULL, delimiter, &context);
             strcpy((char*)virtualSensorList[u8Index].dataSequence, token);
-//            HME_WriteMemory(fileConfig, &virtualSensorList[u8Index], sizeof(tsVirtualSensor), BASE_ADD_VIRTUAL + (u8Index*SIZE_VIRTUAL_T));
+            if (FR_OK != HME_WriteMemory(fileConfig, &virtualSensorList[u8Index], sizeof(tsVirtualSensor), BASE_ADD_VIRTUAL + (u8Index*SIZE_VIRTUAL_T)))
+            	Error_Handler();
             HAL_Delay(1);
-            HAL_UART_Transmit(&huart3, (uint8_t*)"13_OK!", 6, 100);
+            HAL_UART_Transmit(&huart3, (uint8_t*)"13_OK!", 6, HAL_MAX_DELAY);
             break;
         }
     }
@@ -671,8 +752,8 @@ static void appGetDataSequence(void)
     for (u8Index = 0; u8Index < 22; u8Index++)
     {
         if (0 == strcmp(token, cChannel[u8Index]) && (u8Index < 6)) {
-            u8Count = sprintf((char*)respone, "%s!", (char*)u8RxSerialSensor[u8Index]);
-            HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+            u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s!", (char*)u8RxSerialSensor[u8Index]);
+            HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
             break;
         } else if (0 == strcmp(token, cChannel[u8Index]) && (u8Index >= 6)) {
             appProcessVirtualSensor(u8Index-6);
@@ -727,39 +808,42 @@ static void appProcessVirtualSensor(uint8_t u8Channel)
         default:
             break;
     }
-    HAL_UART_Transmit(&huart3, (uint8_t*)&pMessage[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)&pMessage[0], u8Count, HAL_MAX_DELAY);
     free(pMessage);
 }
 
 static void appAnalogStatus(uint8_t u8Channel)
 {
-    uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
+    uint8_t respone[COMMAND_BUF_SIZE], u8Count=0, ndigit=0;
+    char buffer[8];
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f!", (char*)analogSettingList[u8Channel].channel,\
+    ndigit = lenHelper((int)analogSettingList[u8Channel].value) + atoi(analogSettingList[u8Channel].rightDigit) + 2;
+    snprintf(buffer, ndigit, "%f", analogSettingList[u8Channel].value);
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!", (char*)analogSettingList[u8Channel].channel,\
             (char*)analogSettingList[u8Channel].name, (char*)analogSettingList[u8Channel].status,\
             (char*)analogSettingList[u8Channel].inputRange, (char*)analogSettingList[u8Channel].interval,\
             (char*)analogSettingList[u8Channel].slope, (char*)analogSettingList[u8Channel].offset,\
-            (char*)analogSettingList[u8Channel].rightDigit, (char*)analogSettingList[u8Channel].unit, fAnalogDataList[u8Channel]);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+            (char*)analogSettingList[u8Channel].rightDigit, (char*)analogSettingList[u8Channel].unit, buffer);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appDigitalStatus(uint8_t u8Channel)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f!", (char*)digitalSettingList[u8Channel].channel,\
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%.2f!", (char*)digitalSettingList[u8Channel].channel,\
             (char*)digitalSettingList[u8Channel].name, (char*)digitalSettingList[u8Channel].status,\
             (char*)digitalSettingList[u8Channel].mode, (char*)digitalSettingList[u8Channel].interval,\
             (char*)digitalSettingList[u8Channel].slope, (char*)digitalSettingList[u8Channel].offset,\
-            (char*)digitalSettingList[u8Channel].rightDigit,(char*)digitalSettingList[u8Channel].unit, fDigitalDataList[u8Channel]);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+            (char*)digitalSettingList[u8Channel].rightDigit,(char*)digitalSettingList[u8Channel].unit, digitalSettingList[u8Channel].value);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appSerialStatus(uint8_t u8Channel)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!",\
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!",\
             (char*)serialSettingList[u8Channel].channel, (char*)serialSettingList[u8Channel].name,\
             (char*)serialSettingList[u8Channel].status, (char*)serialSettingList[u8Channel].baudrate,\
             (char*)serialSettingList[u8Channel].dataBit, (char*)serialSettingList[u8Channel].parity,\
@@ -767,47 +851,47 @@ static void appSerialStatus(uint8_t u8Channel)
             (char*)serialSettingList[u8Channel].leadChar, (char*)serialSettingList[u8Channel].endOfLine,\
             (char*)serialSettingList[u8Channel].interval, (char*)serialSettingList[u8Channel].getDataCmd,\
             (char*)serialSettingList[u8Channel].unit, (char*)serialSettingList[u8Channel].dataSequence);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appVirtualStatus(uint8_t u8Channel)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!", (char*)virtualSensorList[u8Channel].channel,\
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s!", (char*)virtualSensorList[u8Channel].channel,\
             (char*)virtualSensorList[u8Channel].name, (char*)virtualSensorList[u8Channel].status, (char*)virtualSensorList[u8Channel].vsType,\
             (char*)virtualSensorList[u8Channel].inputSensor1, (char*)virtualSensorList[u8Channel].index1, (char*)virtualSensorList[u8Channel].inputSensor2,\
             (char*)virtualSensorList[u8Channel].index2, (char*)virtualSensorList[u8Channel].startTime, (char*)virtualSensorList[u8Channel].interval,\
             (char*)virtualSensorList[u8Channel].sensorHeight, (char*)virtualSensorList[u8Channel].dataSequence);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appTransmissionStatus(void)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s;%s!", &transmission.startTime[0], &transmission.interval[0], \
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s;%s!", &transmission.startTime[0], &transmission.interval[0], \
             &transmission.URL[0], &transmission.port[0], &transmission.useName[0], &transmission.passWord[0], \
             &transmission.fileName[0], &transmission.headerInterval[0], &transmission.tcp_ip[0]);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appCellularStatus(void)
 {
     uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;%s;%s;%s;%s;%s;%s;%s!", &cellular.cellularMode[0], &cellular.modemStatus[0], \
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE, "%s;%s;%s;%s;%s;%s;%s;%s!", &cellular.cellularMode[0], &cellular.modemStatus[0], \
             &cellular.operator[0], &cellular.modemAccess[0], &cellular.Band[0], &cellular.phoneNumber[0], \
             &cellular.ipV4[0], &cellular.signalLevel[0]);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 }
 
 static void appSortStatus(void)
 {
-    uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
-
-    u8Count = sprintf((char*)respone, "%s!", u8SorttingChannel);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    if (FR_OK != HME_ReadMemory(fileConfig, &sortting[0], COMMAND_BUF_SIZE, BASE_ADD_CHANNEL_SORT))
+    	Error_Handler();
+    strcat((char*)sortting, "!");
+    HAL_UART_Transmit(&huart3, &sortting[0], strlen((char*)sortting), HAL_MAX_DELAY);
 }
 
 static void appSensorStatus(void)
@@ -846,31 +930,66 @@ static void appSensorStatus(void)
 static void appLogExport(void)
 {
     uint8_t i;
-    uint8_t respone[COMMAND_BUF_SIZE], u8Count=0;
+    uint8_t respone[COMMAND_BUF_SIZE/2], u8Count=0;
 
-    u8Count = sprintf((char*)respone, "%s;System;Changed setting!", setting.history);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;System;Changed setting!", setting.history);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 
     for (i = 0; i < 12; i++) {
-        u8Count = sprintf((char*)respone, "%s;Sensor;Changed AI%d setting!", analogSettingList[i].history, i+1);
-        HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+        u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;Sensor;Changed AI%d setting!", analogSettingList[i].history, i+1);
+        HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
     }
 
     for (i = 0; i < 6; i++) {
-        u8Count = sprintf((char*)respone, "%s;Sensor;Changed DI%d setting!", digitalSettingList[i].history, i+1);
-        HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+        u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;Sensor;Changed DI%d setting!", digitalSettingList[i].history, i+1);
+        HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
     }
 
     for (i = 0; i < 6; i++) {
-        u8Count = sprintf((char*)respone, "%s;Sensor;Changed %s setting!", serialSettingList[i].history, serialSettingList[i].channel);
-        HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+        u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;Sensor;Changed %s setting!", serialSettingList[i].history, serialSettingList[i].channel);
+        HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
     }
 
-    u8Count = sprintf((char*)respone, "%s;System;Changed transmission setting!", transmission.history);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;System;Changed transmission setting!", transmission.history);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 
-    u8Count = sprintf((char*)respone, "%s;System;Changed cellular setting!", cellular.history);
-    HAL_UART_Transmit(&huart3, &respone[0], u8Count, 100);
+    u8Count = snprintf((char*)respone, COMMAND_BUF_SIZE/2, "%s;System;Changed cellular setting!", cellular.history);
+    HAL_UART_Transmit(&huart3, &respone[0], u8Count, HAL_MAX_DELAY);
 
-    HAL_UART_Transmit(&huart3, (uint8_t*)"!", 1, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)"!", 1, HAL_MAX_DELAY);
+}
+
+static void setTimeFromString(char *s, RTC_DateTypeDef *sDate, RTC_TimeTypeDef *sTime)
+{
+	char buff[24];
+	strcpy(buff, s);
+	char *token;
+
+	token = strtok_r(buff, "/: ", &context);
+	sDate->Year = (atoi(token)-2000);
+
+	token = strtok_r(NULL, "/: ", &context);
+	sDate->Month = atoi(token);
+
+	token = strtok_r(NULL, "/: ", &context);
+	sDate->Date = atoi(token);
+
+	token = strtok_r(NULL, "/: ", &context);
+	sTime->Hours = atoi(token);
+
+	token = strtok_r(NULL, "/: ", &context);
+	sTime->Minutes = atoi(token);
+
+	token = strtok_r(NULL, "/: ", &context);
+	sTime->Seconds = atoi(token);
+
+	if (HAL_RTC_SetTime(&hrtc, sTime, RTC_FORMAT_BIN) != HAL_OK)
+	{
+	    Error_Handler();
+	}
+
+	if (HAL_RTC_SetDate(&hrtc, sDate, RTC_FORMAT_BIN) != HAL_OK)
+	{
+	    Error_Handler();
+	}
 }

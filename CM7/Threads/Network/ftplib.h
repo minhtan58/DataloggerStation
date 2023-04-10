@@ -70,7 +70,12 @@ netbuf *nControl);
 int FtpRename(const char *src,const char *dst, netbuf *nControl);
 int FtpDelete(const char *fnm, netbuf *nControl);
 void FtpQuit(netbuf *nControl);
+void Config_Ftp();
+//void App_MkDir(char* dir);
 void App_Ftp(char* data);
+
+uint8_t header_count;
+uint8_t header_interval;
 
 #ifdef __cplusplus
 };

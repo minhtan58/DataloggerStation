@@ -1,0 +1,5 @@
+rtc.c:18:6:HAL_RTC_AlarmAEventCallback	1
+rtc.c:28:6:HAL_RTCEx_AlarmBEventCallback	1
+rtc.c:34:6:MX_RTC_Init	6
+rtc.c:108:6:HAL_RTC_MspInit	3
+rtc.c:137:6:HAL_RTC_MspDeInit	2

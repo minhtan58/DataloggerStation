@@ -19,6 +19,8 @@ typedef enum
 
 	/* Network thread */
 	APP_E_NETWORK_SEND_DATA 				= 0x0010,
+	APP_E_NETWORK_SERVER_REV_DATA,
+	APP_E_NETWORK_CLIENT_REV_DATA,
 	APP_E_NETWORK_GET_TIME,
 
 	/* SerialCOM thread */

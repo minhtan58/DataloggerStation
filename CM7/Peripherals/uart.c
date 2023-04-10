@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "uart.h"
 #include "structs.h"
+#include <stdlib.h>
 
 /* USER CODE BEGIN 0 */
 
@@ -39,7 +40,7 @@ extern tsConfig_SerialSensor serialSettingList[6];
 int __io_putchar(int ch)
 {
 	uint8_t c = ch;
-	HAL_UART_Transmit(&huart2, &c, 1, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart3, &c, 1, HAL_MAX_DELAY);
 	return ch;
 }
 
@@ -55,10 +56,15 @@ void MX_UART4_Init(void)
 
   /* USER CODE END UART4_Init 1 */
   huart4.Instance = UART4;
-  huart4.Init.BaudRate = atoi(serialSettingList[0].baudrate);;
-  huart4.Init.WordLength = UART_WORDLENGTH_8B;
-  huart4.Init.StopBits = UART_STOPBITS_1;
-  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.BaudRate = atoi(serialSettingList[0].baudrate);
+  (serialSettingList[0].dataBit[0] == '8') ?\
+    (huart4.Init.WordLength = UART_WORDLENGTH_8B) : (huart4.Init.WordLength = UART_WORDLENGTH_7B);
+  (serialSettingList[0].stopBit[0] == '1') ?\
+    (huart4.Init.StopBits = UART_STOPBITS_1) : (serialSettingList[0].stopBit[0] == '2') ?\
+      (huart4.Init.StopBits = UART_STOPBITS_2) : (huart4.Init.StopBits = UART_STOPBITS_0_5);
+  (serialSettingList[0].parity[0] == 'N') ?\
+    (huart4.Init.Parity = UART_PARITY_NONE) : (serialSettingList[0].parity[0] == 'O') ?\
+      (huart4.Init.Parity = UART_PARITY_ODD) : (huart4.Init.Parity = UART_PARITY_EVEN);
   huart4.Init.Mode = UART_MODE_TX_RX;
   huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart4.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -99,9 +105,14 @@ void MX_UART5_Init(void)
   /* USER CODE END UART5_Init 1 */
   huart5.Instance = UART5;
   huart5.Init.BaudRate = atoi(serialSettingList[2].baudrate);
-  huart5.Init.WordLength = UART_WORDLENGTH_8B;
-  huart5.Init.StopBits = UART_STOPBITS_1;
-  huart5.Init.Parity = UART_PARITY_NONE;
+  (serialSettingList[2].dataBit[0] == '8') ?\
+    (huart5.Init.WordLength = UART_WORDLENGTH_8B) : (huart5.Init.WordLength = UART_WORDLENGTH_7B);
+  (serialSettingList[2].stopBit[0] == '1') ?\
+    (huart5.Init.StopBits = UART_STOPBITS_1) : (serialSettingList[2].stopBit[0] == '2') ?\
+      (huart5.Init.StopBits = UART_STOPBITS_2) : (huart5.Init.StopBits = UART_STOPBITS_0_5);
+  (serialSettingList[2].parity[0] == 'N') ?\
+    (huart5.Init.Parity = UART_PARITY_NONE) : (serialSettingList[2].parity[0] == 'O') ?\
+      (huart5.Init.Parity = UART_PARITY_ODD) : (huart5.Init.Parity = UART_PARITY_EVEN);
   huart5.Init.Mode = UART_MODE_TX_RX;
   huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart5.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -144,13 +155,17 @@ void MX_UART7_Init(void)
   huart7.Init.BaudRate = 1200;
   huart7.Init.WordLength = UART_WORDLENGTH_8B;
   huart7.Init.StopBits = UART_STOPBITS_1;
-  huart7.Init.Parity = UART_PARITY_NONE;
+  huart7.Init.Parity = UART_PARITY_EVEN;
   huart7.Init.Mode = UART_MODE_TX_RX;
   huart7.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart7.Init.OverSampling = UART_OVERSAMPLING_16;
   huart7.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart7.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart7.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  huart7.Init.ClockPrescaler = UART_PRESCALER_DIV16;
+  huart7.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT|UART_ADVFEATURE_RXINVERT_INIT
+          	  	  	  	  	  	  	  |UART_ADVFEATURE_SWAP_INIT;
+  huart7.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
+  huart7.AdvancedInit.RxPinLevelInvert = UART_ADVFEATURE_RXINV_ENABLE;
+  huart7.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
   if (HAL_UART_Init(&huart7) != HAL_OK)
   {
     Error_Handler();
@@ -168,7 +183,11 @@ void MX_UART7_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN UART7_Init 2 */
-
+  huart7.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_DISABLE;
+  if (HAL_UART_Init(&huart7) != HAL_OK)
+  {
+	  HAL_UART_Transmit(&huart3, "ERR\r\n", 5, 10);
+  }
   /* USER CODE END UART7_Init 2 */
 
 }
@@ -229,9 +248,13 @@ void MX_USART1_UART_Init(void)
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
   huart1.Init.BaudRate = atoi(serialSettingList[3].baudrate);
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
+  (serialSettingList[3].dataBit[0] == '8') ?\
+    (huart1.Init.WordLength = UART_WORDLENGTH_8B) : (huart1.Init.WordLength = UART_WORDLENGTH_7B);
+  (serialSettingList[3].stopBit[0] == '1') ?\
+    (huart1.Init.StopBits = UART_STOPBITS_1) : (huart1.Init.StopBits = UART_STOPBITS_2);
+  (serialSettingList[3].parity[0] == 'N') ?\
+    (huart1.Init.Parity = UART_PARITY_NONE) : (serialSettingList[3].parity[0] == 'O') ?\
+      (huart1.Init.Parity = UART_PARITY_ODD) : (huart1.Init.Parity = UART_PARITY_EVEN);
   huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -273,9 +296,13 @@ void MX_USART2_UART_Init(void)
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
   huart2.Init.BaudRate = atoi(serialSettingList[4].baudrate);
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
+  (serialSettingList[4].dataBit[0] == '8') ?\
+    (huart2.Init.WordLength = UART_WORDLENGTH_8B) : (huart2.Init.WordLength = UART_WORDLENGTH_7B);
+  (serialSettingList[4].stopBit[0] == '1') ?\
+    (huart2.Init.StopBits = UART_STOPBITS_1) : (huart2.Init.StopBits = UART_STOPBITS_2);
+  (serialSettingList[4].parity[0] == 'N') ?\
+    (huart2.Init.Parity = UART_PARITY_NONE) : (serialSettingList[4].parity[0] == 'O') ?\
+      (huart2.Init.Parity = UART_PARITY_ODD) : (huart2.Init.Parity = UART_PARITY_EVEN);
   huart2.Init.Mode = UART_MODE_TX_RX;
   huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -361,9 +388,13 @@ void MX_USART6_UART_Init(void)
   /* USER CODE END USART6_Init 1 */
   huart6.Instance = USART6;
   huart6.Init.BaudRate = atoi(serialSettingList[1].baudrate);
-  huart6.Init.WordLength = UART_WORDLENGTH_8B;
-  huart6.Init.StopBits = UART_STOPBITS_1;
-  huart6.Init.Parity = UART_PARITY_NONE;
+  (serialSettingList[1].dataBit[0] == '8') ?\
+    (huart6.Init.WordLength = UART_WORDLENGTH_8B) : (huart6.Init.WordLength = UART_WORDLENGTH_7B);
+  (serialSettingList[1].stopBit[0] == '2') ?\
+    (huart6.Init.StopBits = UART_STOPBITS_2) : (huart6.Init.StopBits = UART_STOPBITS_1);
+  (serialSettingList[1].parity[0] == 'N') ?\
+    (huart6.Init.Parity = UART_PARITY_NONE) : (serialSettingList[1].parity[0] == 'O') ?\
+      (huart6.Init.Parity = UART_PARITY_ODD) : (huart6.Init.Parity = UART_PARITY_EVEN);
   huart6.Init.Mode = UART_MODE_TX_RX;
   huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart6.Init.OverSampling = UART_OVERSAMPLING_16;
@@ -427,7 +458,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
     /* UART4 interrupt Init */
-    HAL_NVIC_SetPriority(UART4_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(UART4_IRQn, 6, 7);
     HAL_NVIC_EnableIRQ(UART4_IRQn);
   /* USER CODE BEGIN UART4_MspInit 1 */
 
@@ -464,7 +495,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* UART5 interrupt Init */
-    HAL_NVIC_SetPriority(UART5_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(UART5_IRQn, 6, 6);
     HAL_NVIC_EnableIRQ(UART5_IRQn);
   /* USER CODE BEGIN UART5_MspInit 1 */
 
@@ -501,8 +532,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* UART7 interrupt Init */
-    HAL_NVIC_SetPriority(UART7_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(UART7_IRQn);
+//    HAL_NVIC_SetPriority(UART7_IRQn, 6, 5);
+//    HAL_NVIC_EnableIRQ(UART7_IRQn);
   /* USER CODE BEGIN UART7_MspInit 1 */
 
   /* USER CODE END UART7_MspInit 1 */
@@ -538,7 +569,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOJ, &GPIO_InitStruct);
 
     /* UART8 interrupt Init */
-    HAL_NVIC_SetPriority(UART8_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(UART8_IRQn, 6, 4);
     HAL_NVIC_EnableIRQ(UART8_IRQn);
   /* USER CODE BEGIN UART8_MspInit 1 */
 
@@ -575,7 +606,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* USART1 interrupt Init */
-    HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(USART1_IRQn, 6, 3);
     HAL_NVIC_EnableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
 
@@ -620,7 +651,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* USART2 interrupt Init */
-    HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(USART2_IRQn, 6, 2);
     HAL_NVIC_EnableIRQ(USART2_IRQn);
   /* USER CODE BEGIN USART2_MspInit 1 */
 
@@ -657,7 +688,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* USART3 interrupt Init */
-    HAL_NVIC_SetPriority(USART3_IRQn, 6, 0);
+    HAL_NVIC_SetPriority(USART3_IRQn, 5, 1);
     HAL_NVIC_EnableIRQ(USART3_IRQn);
   /* USER CODE BEGIN USART3_MspInit 1 */
 
@@ -694,7 +725,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     /* USART6 interrupt Init */
-    HAL_NVIC_SetPriority(USART6_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(USART6_IRQn, 6, 1);
     HAL_NVIC_EnableIRQ(USART6_IRQn);
   /* USER CODE BEGIN USART6_MspInit 1 */
 
@@ -760,7 +791,7 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_15|GPIO_PIN_8);
 
     /* UART7 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(UART7_IRQn);
+//    HAL_NVIC_DisableIRQ(UART7_IRQn);
   /* USER CODE BEGIN UART7_MspDeInit 1 */
 
   /* USER CODE END UART7_MspDeInit 1 */

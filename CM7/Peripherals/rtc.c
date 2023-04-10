@@ -4,15 +4,32 @@
  *  Created on: Oct 16, 2022
  *      Author: minht
  */
+#include <stdio.h>
 #include "app_common.h"
 #include "rtc.h"
-#include <stdio.h>
-RTC_HandleTypeDef hrtc;
+#include "ftplib.h"
 
-//void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
-//{
-//	printf("Call back\n\r");
-//}
+RTC_HandleTypeDef hrtc;
+extern iupd_t ftp_set;
+extern tsSetting setting;
+char ftpFilename[50];
+extern RTC_DateTypeDef sDateSys;
+
+void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
+{
+	//printf("Callback for set file name\r\n");
+	//strcpy(&filePathConfig[0], "/public_html/DATA/");
+	snprintf(ftpFilename, 50,"%s%d%d%d.txt", setting.stationName, sDateSys.Year, sDateSys.Month, sDateSys.Date);
+	//snprintf(filePathConfig, 50,"/%s/%d%/%d", sDateSys.Year, sDateSys.Month, sDateSys.Date);
+	CreateNewDir(sDateSys.Year, sDateSys.Month, sDateSys.Date);
+	strcpy((char*)ftp_set.file_name, ftpFilename);
+}
+
+void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc)
+{
+	//printf("Bat dau gui du lieu\r\n");
+	//osTimerStart(periodicNetworkTimer, atoi(transmission.interval)*1000);
+}
 
 void MX_RTC_Init(void)
 {
@@ -24,8 +41,8 @@ void MX_RTC_Init(void)
 	*/
 	hrtc.Instance = RTC;
 	hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-	hrtc.Init.AsynchPrediv = 127;
-	hrtc.Init.SynchPrediv = 255;
+	hrtc.Init.AsynchPrediv = 124;
+	hrtc.Init.SynchPrediv = 7999;
 	hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
 	hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
 	hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
@@ -37,9 +54,9 @@ void MX_RTC_Init(void)
 
 	/** Initialize RTC and set the Time and Date
 	*/
-	  sTime.Hours = 0x12;
-	  sTime.Minutes = 0x32;
-	  sTime.Seconds = 0x20;
+	  sTime.Hours = 10;
+	  sTime.Minutes = 0;
+	  sTime.Seconds = 0;
 	  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
 	  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
@@ -47,28 +64,41 @@ void MX_RTC_Init(void)
 	    Error_Handler();
 	  }
 	  sDate.WeekDay = RTC_WEEKDAY_MONDAY;
-	  sDate.Month = RTC_MONTH_JANUARY;
-	  sDate.Date = 0x1;
-	  sDate.Year = 0x0;
+	  sDate.Month = RTC_MONTH_MARCH;
+	  sDate.Date = 0x21;
+	  sDate.Year = 0x23;
 
 	  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 	  {
 	    Error_Handler();
 	  }
 
+	HAL_RTC_DeactivateAlarm(&hrtc, RTC_ALARM_A);
+
 	/** Enable the Alarm A
 	*/
-	sAlarm.AlarmTime.Hours = 0x12;
-	sAlarm.AlarmTime.Minutes = 0x33;
-	sAlarm.AlarmTime.Seconds = 0x00;
-	sAlarm.AlarmTime.SubSeconds = 0x0;
+	sAlarm.AlarmTime.Hours = 10;
+	sAlarm.AlarmTime.Minutes = 5;
+	sAlarm.AlarmTime.Seconds = 0;
+	sAlarm.AlarmTime.SubSeconds = 0;
 	sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sAlarm.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
-	sAlarm.AlarmMask = RTC_ALARMMASK_NONE;
+	sAlarm.AlarmMask = RTC_ALARMMASK_DATEWEEKDAY;
 	sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
 	sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-	sAlarm.AlarmDateWeekDay = 0x1;
+	sAlarm.AlarmDateWeekDay = 20;
 	sAlarm.Alarm = RTC_ALARM_A;
+	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/** Enable the Alarm B
+	*/
+	sAlarm.AlarmTime.Hours = 0x1;
+	sAlarm.AlarmTime.Minutes = 0x2;
+	sAlarm.AlarmTime.Seconds = 0x3;
+	sAlarm.Alarm = RTC_ALARM_B;
 	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
 	{
 		Error_Handler();
@@ -83,7 +113,7 @@ void HAL_RTC_MspInit(RTC_HandleTypeDef* hrtc)
 		/** Initializes the peripherals clock
 		*/
 		PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
-		PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+		PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_HSE_DIV25;
 		if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
 		{
 		  Error_Handler();

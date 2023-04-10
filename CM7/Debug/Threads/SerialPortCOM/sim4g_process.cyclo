@@ -1,0 +1,6 @@
+sim4g_process.c:30:6:display	1
+sim4g_process.c:35:6:deleteBuffer	2
+sim4g_process.c:44:9:Sim_sendCommand	8
+sim4g_process.c:92:6:Sim_configGPRSnFTP	9
+sim4g_process.c:144:6:Sim_uploadFileFromFTP	4
+sim4g_process.c:170:6:Sim_downloadFileFromFTP	6

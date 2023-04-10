@@ -40,6 +40,20 @@ typedef struct
 } tsSetting;
 
 /**
+  * @brief Setting FTP structures definition
+  */
+typedef struct iupd_s {
+	const char *s_time;
+	const char *url;
+	const char *user;
+	const char *pass;
+	const char *file_name;
+	int   port_n;
+	int   h_interval;
+	int   Interval;
+} iupd_t;
+
+/**
   * @brief  Setting Analog channel structures definition
   */
 typedef struct
@@ -48,12 +62,13 @@ typedef struct
     char status[10];        ///< Status
     char name[10];          ///< Name
     char inputRange[10];    ///< Input Range
-    char interval[6];       ///< Interval
+    char interval[3];       ///< Interval
     char slope[6];          ///< Slope
     char offset[6];         ///< Offset
     char rightDigit[2];     ///< Right Digit
     char unit[6];           ///< Unit
     char history[20];       ///< Latest config
+    volatile float value;
 } tsAnalogSensor;
 
 /**
@@ -65,12 +80,13 @@ typedef struct
     char status[10];        ///< Status
     char name[10];          ///< Name
     char mode[10];          ///< Mode
-    char interval[6];       ///< Interval
+    char interval[3];       ///< Interval
     char slope[6];          ///< Slope
     char offset[6];         ///< Offset
     char rightDigit[2];     ///< Right Digit
     char unit[6];           ///< Unit
     char history[20];       ///< Latest config
+    volatile float value;
 } tsDigitalSensor;
 
 /**
@@ -81,6 +97,7 @@ typedef struct {
     char name[10];
     char index[2];
     char unit[5];
+    char value[10];
 }tsUsedData;
 
 typedef struct
@@ -95,12 +112,12 @@ typedef struct
     char flowControl[6];   ///< Flow control
     char leadChar[12];     ///< Lead char
     char endOfLine[12];    ///< End of line
-    char interval[6];      ///< Interval
+    char interval[3];      ///< Interval
     char getDataCmd[12];   ///< Get data command
     char unit[6];
-    char dataSequence[50];
-    char numDataType;
-	tsUsedData dataType[10];
+    char dataSequence[128];
+    uint8_t numDataType;
+    tsUsedData dataType[5];
     char history[20];       ///< Latest config
 } tsConfig_SerialSensor;
 
@@ -110,7 +127,7 @@ typedef struct
 typedef struct
 {
     char startTime[15];        ///< Start time
-    char interval[6];          ///< Interval
+    char interval[3];          ///< Interval
     char URL[30];              ///< URL
     char port[6];              ///< Port
     char useName[30];          ///< Username
@@ -151,9 +168,19 @@ typedef struct
     char inputSensor2[6];
     char index2[2];
     char startTime[15];
-    char interval[6];
+    char interval[3];
     char sensorHeight[6];
     char dataSequence[128];
 } tsVirtualSensor;
+
+/**
+  * @brief  Channel Sorting setting structures definition
+  */
+typedef struct
+{
+    char name[10];
+    char subIndex[3];
+} tsSort;
+
 
 #endif /* STRUCTS_H_ */

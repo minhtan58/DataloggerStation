@@ -7,6 +7,7 @@
 #include "timer.h"
 #include "cmsis_os.h"
 #include "enums.h"
+#include "tcp_echoclient.h"
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -34,17 +35,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if(htim->Instance == htim2.Instance)
 	{
-		osMessagePut(NetworkQueueHandle, APP_E_NETWORK_SEND_DATA, 0);
-	}
-
-	if(htim->Instance == htim5.Instance)
-	{
-		osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_5, 0);
-	}
-
-	if(htim->Instance == htim4.Instance)
-	{
-		osMessagePut(digitalQueueHandle, APP_E_DIGITAL_READ_FREQUENCY, 0);
+		get_time = 1;
+		tcp_echoclient_connect(129,6,15,28,13);
 	}
 }
 
@@ -59,9 +51,9 @@ void MX_TIM2_Init(void)
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
 
 	htim2.Instance = TIM2;
-	htim2.Init.Prescaler = 40000;
+	htim2.Init.Prescaler = 40000-1;
 	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim2.Init.Period = 100000;
+	htim2.Init.Period = 100000-1;
 	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK)

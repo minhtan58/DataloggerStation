@@ -1,0 +1,7 @@
+tcp_echoclient.c:72:6:tcp_echoclient_connect	2
+tcp_echoclient.c:101:14:tcp_echoclient_connected	5
+tcp_echoclient.c:160:14:tcp_echoclient_recv	7
+tcp_echoclient.c:227:13:tcp_echoclient_send	7
+tcp_echoclient.c:275:14:tcp_echoclient_poll	4
+tcp_echoclient.c:316:14:tcp_echoclient_sent	2
+tcp_echoclient.c:339:13:tcp_echoclient_connection_close	2

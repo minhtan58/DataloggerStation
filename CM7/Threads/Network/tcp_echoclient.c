@@ -25,17 +25,16 @@
 #include <stdio.h>
 #include <string.h>
 #include "tcp_echoclient.h"
+#include "enums.h"
+#include "cmsis_os.h"
 
 #if LWIP_TCP
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-u8_t  recev_buf[50];
-__IO uint32_t message_count=0;
 
-u8_t   data[100];
-
+extern osMessageQId NetworkQueueHandle;
 struct tcp_pcb *echoclient_pcb;
 
 /* ECHO protocol states */
@@ -55,18 +54,7 @@ struct echoclient
   struct pbuf *p_tx;            /* pointer on pbuf to be transmitted */
 };
 
-struct echoclient *esTx = 0;
-struct tcp_pcb *pcbTx = 0;
-
-#define DEST_IP_ADDR0   (uint8_t)192
-#define DEST_IP_ADDR1   (uint8_t)168
-#define DEST_IP_ADDR2   (uint8_t)2
-#define DEST_IP_ADDR3   (uint8_t)105
-
-#define DEST_PORT       (uint32_t)9
-
 /* Private function prototypes -----------------------------------------------*/
-static void tcp_client_handle (struct tcp_pcb *tpcb, struct echoclient *es);
 static err_t tcp_echoclient_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 static void tcp_echoclient_connection_close(struct tcp_pcb *tpcb, struct echoclient * es);
 static err_t tcp_echoclient_poll(void *arg, struct tcp_pcb *tpcb);
@@ -76,51 +64,32 @@ static err_t tcp_echoclient_connected(void *arg, struct tcp_pcb *tpcb, err_t err
 
 /* Private functions ---------------------------------------------------------*/
 
-void tcp_client_send_data(char *buf)
-{
-	esTx->p_tx = pbuf_alloc(PBUF_TRANSPORT, strlen((char*)buf) , PBUF_POOL);
-
-    if (esTx->p_tx)
-    {
-		/* copy data to pbuf */
-		pbuf_take(esTx->p_tx, (char*)buf, strlen((char*)buf));
-		tcp_echoclient_send(pcbTx,esTx);
-    }
-}
-
-static void tcp_client_handle(struct tcp_pcb *tpcb, struct echoclient *es)
-{
-	esTx = es;
-	pcbTx = tpcb;
-}
-
 /**
   * @brief  Connects to the TCP echo server
   * @param  None
   * @retval None
   */
-void tcp_echoclient_connect(void)
+void tcp_echoclient_connect(uint8_t ip_Adress0, uint8_t ip_Adress1, uint8_t ip_Adress2, uint8_t ip_Adress3, uint32_t port)
 {
-  ip_addr_t DestIPaddr;
+	ip_addr_t DestIPaddr;
 
-  /* create new tcp pcb */
-  echoclient_pcb = tcp_new();
+	/* create new tcp pcb */
+	echoclient_pcb = tcp_new();
 
-  if (echoclient_pcb != NULL)
-  {
-    IP4_ADDR( &DestIPaddr, DEST_IP_ADDR0, DEST_IP_ADDR1, DEST_IP_ADDR2, DEST_IP_ADDR3 );
-
-    /* connect to destination address/port */
-    tcp_connect(echoclient_pcb,&DestIPaddr,DEST_PORT,tcp_echoclient_connected);
-  }
-  else
-  {
-    /* deallocate the pcb */
-    memp_free(MEMP_TCP_PCB, echoclient_pcb);
+	if (echoclient_pcb != NULL)
+	{
+		IP4_ADDR(&DestIPaddr, ip_Adress0, ip_Adress1, ip_Adress2, ip_Adress3);
+		/* connect to destination address/port */
+		tcp_connect(echoclient_pcb, &DestIPaddr, port, tcp_echoclient_connected);
+	}
+	else
+	{
+	/* deallocate the pcb */
+	memp_free(MEMP_TCP_PCB, echoclient_pcb);
 #ifdef SERIAL_DEBUG
-    printf("\n\r can not create tcp pcb");
+	printf("\n\r can not create tcp pcb");
 #endif
-  }
+	}
 }
 
 /**
@@ -132,7 +101,7 @@ void tcp_echoclient_connect(void)
 static err_t tcp_echoclient_connected(void *arg, struct tcp_pcb *tpcb, err_t err)
 {
   struct echoclient *es = NULL;
-
+  err_t ret_err;
   if (err == ERR_OK)
   {
     /* allocate structure es to maintain tcp connection informations */
@@ -142,8 +111,6 @@ static err_t tcp_echoclient_connected(void *arg, struct tcp_pcb *tpcb, err_t err
     {
       es->state = ES_CONNECTED;
       es->pcb = tpcb;
-
-      sprintf((char*)data, "sending tcp client message %d", (int)message_count);
 
       /* allocate pbuf */
       es->p_tx = pbuf_alloc(PBUF_TRANSPORT, strlen((char*)data) , PBUF_POOL);
@@ -166,27 +133,21 @@ static err_t tcp_echoclient_connected(void *arg, struct tcp_pcb *tpcb, err_t err
         tcp_poll(tpcb, tcp_echoclient_poll, 1);
 
         /* send data */
-        tcp_client_handle(tpcb, es);
-        //tcp_echoclient_send(tpcb,es);
-
-        return ERR_OK;
+        if(!get_time){
+            tcp_echoclient_send(tpcb,es);
+            tcp_echoclient_connection_close(tpcb, es);
+        }
+        ret_err = ERR_OK;
       }
     }
-    else
-    {
-      /* close connection */
-      tcp_echoclient_connection_close(tpcb, es);
-
-      /* return memory allocation error */
-      return ERR_MEM;
     }
-  }
-  else
-  {
-    /* close connection */
-    tcp_echoclient_connection_close(tpcb, es);
-  }
-  return err;
+	else
+	{
+		/* close connection */
+		tcp_echoclient_connection_close(tpcb, es);
+		ret_err = ERR_MEM;
+	}
+	return ret_err;
 }
 
 /**
@@ -218,7 +179,7 @@ static err_t tcp_echoclient_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
     else
     {
       /* send remaining data*/
-      tcp_echoclient_send(tpcb, es);
+      //tcp_echoclient_send(tpcb, es);
     }
     ret_err = ERR_OK;
   }
@@ -234,14 +195,10 @@ static err_t tcp_echoclient_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
   }
   else if(es->state == ES_CONNECTED)
   {
-    /* increment message count */
-    message_count++;
-
     /* Acknowledge data reception */
     tcp_recved(tpcb, p->tot_len);
     memcpy(&recev_buf, p->payload, p->len);
-    tcp_client_handle(tpcb, es);
-    //printf("Data : %s",recev_buf);
+    osMessagePut(NetworkQueueHandle, APP_E_NETWORK_CLIENT_REV_DATA, 0);
     pbuf_free(p);
     tcp_echoclient_connection_close(tpcb, es);
     ret_err = ERR_OK;

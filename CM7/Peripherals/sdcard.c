@@ -24,9 +24,6 @@ UINT br, bw;
 /* Capacity */
 FATFS *pfs;
 
-char fileConfig[20] = "okela27.txt";
-char filePathConfig[50] = "/public_html/DATA/";
-
 void MX_SDMMC1_SD_Init(void)
 {
 	hsd1.Instance = SDMMC1;
@@ -315,4 +312,41 @@ FRESULT HME_ReadMemory(TCHAR* filename, void* buffer, uint16_t buffer_size, uint
     }
    	fresult = f_mount(&FatFs,"",0);
     return fresult;
+}
+
+FRESULT HME_WriteFile(TCHAR* filename, TCHAR* buffer, uint16_t buffer_size)
+{
+	f_mount(&FatFs,"",1);
+    /* Create new file and start write to it. */
+	fresult = f_open(&myfile, filename, FA_OPEN_APPEND | FA_WRITE);
+    if(fresult == FR_OK)
+    {
+    	fresult = f_write(&myfile, buffer, buffer_size, &bw);
+       	f_close(&myfile);
+    }
+   	fresult = f_mount(&FatFs,"",0);
+    return fresult;
+}
+
+void CreateNewDir(uint16_t year, uint8_t month, uint8_t day)
+{
+	TCHAR buffer[5];
+	f_mount(&FatFs,"",1);
+	sprintf(buffer,"%d",year);
+	if(f_chdir(buffer) != FR_OK)
+	{
+		f_mkdir(buffer);
+		f_chdir(buffer);
+	}
+	sprintf(buffer,"%d",month);
+	if(f_chdir(buffer) != FR_OK)
+	{
+		f_mkdir(buffer);
+		f_chdir(buffer);
+	}
+	sprintf(buffer,"%d",day);
+	if(f_chdir(buffer) != FR_OK) {
+		f_mkdir(buffer);
+	}
+	fresult = f_mount(&FatFs,"",0);
 }

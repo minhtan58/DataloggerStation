@@ -1,0 +1,7 @@
+insign_sensor.c:15:6:insignReadID	4
+insign_sensor.c:35:6:insignWakeUp	2
+insign_sensor.c:46:6:insignSleep	2
+insign_sensor.c:57:6:insignSoftReset	2
+insign_sensor.c:68:19:insignMeasurements	3
+insign_sensor.c:91:19:insignMeasurementsModeLowPower	5
+insign_sensor.c:120:26:insignCheckCRC	5

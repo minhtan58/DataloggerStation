@@ -1,0 +1,17 @@
+analog_sensor_handler.c:49:6:Analog_setup	1
+analog_sensor_handler.c:63:7:Get_AnalogData	3
+analog_sensor_handler.c:82:7:Get_AnalogName	3
+analog_sensor_handler.c:94:6:AnalogSensor_Task	14
+analog_sensor_handler.c:221:6:PTCallback1	1
+analog_sensor_handler.c:226:6:PTCallback2	1
+analog_sensor_handler.c:231:6:PTCallback3	1
+analog_sensor_handler.c:236:6:PTCallback4	1
+analog_sensor_handler.c:241:6:PTCallback5	1
+analog_sensor_handler.c:246:6:PTCallback6	1
+analog_sensor_handler.c:251:6:PTCallback7	1
+analog_sensor_handler.c:256:6:PTCallback8	1
+analog_sensor_handler.c:261:6:PTCallback9	1
+analog_sensor_handler.c:266:6:PTCallback10	1
+analog_sensor_handler.c:271:6:PTCallback11	1
+analog_sensor_handler.c:276:6:PTCallback12	1
+analog_sensor_handler.c:281:9:lenHelper	4

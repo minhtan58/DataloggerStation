@@ -11,6 +11,7 @@ RM := rm -rf
 -include sources.mk
 -include USB_DEVICE/Target/subdir.mk
 -include USB_DEVICE/App/subdir.mk
+-include Threads/VirtualSensor/subdir.mk
 -include Threads/SerialPortCOM/subdir.mk
 -include Threads/Network/subdir.mk
 -include Threads/LCD_Display/u8g2/subdir.mk
@@ -102,8 +103,8 @@ all: main-build
 main-build: Dicom_Datalogger_CM7.elf secondary-outputs
 
 # Tool invocations
-Dicom_Datalogger_CM7.elf Dicom_Datalogger_CM7.map: $(OBJS) $(USER_OBJS) D:\Dicom\Git\Datalogger_ver2\CM7\STM32H747XIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Dicom_Datalogger_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"D:\Dicom\Git\Datalogger_ver2\CM7\STM32H747XIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Dicom_Datalogger_CM7.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Dicom_Datalogger_CM7.elf Dicom_Datalogger_CM7.map: $(OBJS) $(USER_OBJS) D:\Git\Datalogger_ver2\CM7\STM32H747XIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Dicom_Datalogger_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"D:\Git\Datalogger_ver2\CM7\STM32H747XIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Dicom_Datalogger_CM7.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

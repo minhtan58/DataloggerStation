@@ -1,0 +1,5 @@
+netbiosns.c:243:1:netbiosns_name_decode	7
+netbiosns.c:347:1:netbiosns_recv	10
+netbiosns.c:478:1:netbiosns_init	2
+netbiosns.c:501:1:netbiosns_set_name	5
+netbiosns.c:524:1:netbiosns_stop	2

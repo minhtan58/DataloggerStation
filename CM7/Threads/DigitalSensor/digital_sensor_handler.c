@@ -21,201 +21,278 @@
 
 extern TIM_HandleTypeDef htim5;
 extern TIM_HandleTypeDef htim3;
+extern tsDigitalSensor digitalSettingList[6];
 
-uint32_t IC_Val1 = 0;
-uint32_t IC_Val2 = 0;
-uint32_t Difference = 0;
-int Is_First_Captured = 0;
-float frequency = 0;
+volatile uint32_t ch1_val1, ch1_val2, ch2_val1, ch2_val2, ch3_val1, ch3_val2, ch4_val1, ch4_val2;
+volatile uint32_t difference_ch1, difference_ch2, difference_ch3, difference_ch4;
+volatile int flag_ch1, flag_ch2, flag_ch3, flag_ch4;
+volatile float frequency_ch1, frequency_ch2, frequency_ch3, frequency_ch4;
+volatile uint32_t counter_ch1, counter_ch2, counter_ch3, counter_ch4;
 /****************************************************************************/
 /***    Local Variables                           ***/
 /****************************************************************************/
-osMessageQId digitalQueueHandle;
+//osMessageQId digitalQueueHandle;
+osTimerId periodicDigitalTimer[4];
+char dataDigitalUsed[128];
+float dataDigital[4];
 
 /****************************************************************************/
 /***    Implementation                          */
 /****************************************************************************/
 
+void Digital_setup()
+{
+	for(int i = 0; i < 4; i++)
+	{
+		if(digitalSettingList[i].status[0] == 'E')
+		{
+			HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2 * i);
+			osTimerStart(periodicDigitalTimer[i], atoi(digitalSettingList[i].interval)*1000);
+		}
+		else
+		{
+			HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2 * i);
+			osTimerStop(periodicDigitalTimer[i]);
+		}
+	}
+}
+
+char* Get_DigitalData(void)
+{
+    uint8_t length = 0;
+    memset(dataDigitalUsed, 0, 128);
+
+    for(int i = 0; i < 6; i++)
+    {
+        if(digitalSettingList[i].status[0] == 'E')
+        {
+            length += sprintf(dataDigitalUsed + length, "%s", dataDigital[i]);
+        }
+    }
+    return dataDigitalUsed;
+}
+
+void Digital_Callback1(void const * argument)
+{
+	dataDigital[0] = counter_ch1;
+	if(digitalSettingList[0].mode[0] == 'F'){
+		HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
+	}
+	//osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_1, 0);
+}
+
+void Digital_Callback2(void const * argument)
+{
+	dataDigital[1] = counter_ch2;
+	if(digitalSettingList[1].mode[0] == 'F'){
+		HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+	}
+	//osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_2, 0);
+}
+
+void Digital_Callback3(void const * argument)
+{
+	dataDigital[2] = counter_ch3;
+	if(digitalSettingList[2].mode[0] == 'F'){
+		HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);
+	}
+	//osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_3, 0);
+}
+
+void Digital_Callback4(void const * argument)
+{
+	dataDigital[3] = counter_ch4;
+	if(digitalSettingList[3].mode[0] == 'F'){
+		HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
+	}
+	//osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_4, 0);
+}
+
 void DigitalSensor_Task(void const * argument)
 {
-	osEvent event;
+	//osEvent event;
 
-	osMessageQDef(myQueue01, 16, uint16_t);
-	digitalQueueHandle = osMessageCreate(osMessageQ(myQueue01), NULL);
+	//osMessageQDef(myQueue01, 16, uint16_t);
+	//digitalQueueHandle = osMessageCreate(osMessageQ(myQueue01), NULL);
+
+	osTimerDef(periodicTimer1, Digital_Callback1);
+	periodicDigitalTimer[0] = osTimerCreate(osTimer(periodicTimer1), osTimerPeriodic, NULL);
+
+	osTimerDef(periodicTimer2, Digital_Callback2);
+	periodicDigitalTimer[1] = osTimerCreate(osTimer(periodicTimer2), osTimerPeriodic, NULL);
+
+	osTimerDef(periodicTimer3, Digital_Callback3);
+	periodicDigitalTimer[2] = osTimerCreate(osTimer(periodicTimer3), osTimerPeriodic, NULL);
+
+	osTimerDef(periodicTimer4, Digital_Callback4);
+	periodicDigitalTimer[3] = osTimerCreate(osTimer(periodicTimer4), osTimerPeriodic, NULL);
 
 	while(1)
 	{
+		/*
 		event = osMessageGet(digitalQueueHandle, 10);
 		if( event.status == osEventMessage )
 		{
 			switch(event.value.v)
 			{
 				case APP_E_DIGITAL_CHANNEL_1:
-					//Lấy giá trị frequency CH1
+					dataDigital[0] = counter_ch1;
 					break;
 				case APP_E_DIGITAL_CHANNEL_2:
-					//Lấy giá trị frequency CH1
+					dataDigital[1] = counter_ch2;
 					break;
 				case APP_E_DIGITAL_CHANNEL_3:
-					//Lấy giá trị frequency CH1
+					dataDigital[2] = counter_ch3;
 					break;
 				case APP_E_DIGITAL_CHANNEL_4:
-					//Lấy giá trị frequency CH1
+					dataDigital[3] = counter_ch4;
 					break;
 				case APP_E_DIGITAL_CHANNEL_5:
-					// Dọc giá trị đêm dc của ngăt PI4
 					break;
 				case APP_E_DIGITAL_CHANNEL_6:
-					// Dọc giá trị đêm dc của ngăt PI5
-					break;
-				case APP_E_DIGITAL_READ_FREQUENCY:
-					// Dọc giá trị sersor Frequency
-					HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
-					HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
-					HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);
-					HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
 					break;
 				default:
 					break;
 			}
 		}
+		*/
 		osDelay(1);
 	}
-}
-
-void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
-{
-//	printf("Call back\n\r");
-	HAL_TIM_Base_Start_IT(&htim5);
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
 	{
-		if (Is_First_Captured==0) // if the first rising edge is not captured
+		if(digitalSettingList[0].mode[0] == 'F')
 		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
+
+			if (flag_ch1 == 0)
+			{
+				ch1_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+				flag_ch1 = 1;
+			}
+			else
+			{
+				ch1_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+
+				if (ch1_val2 > ch1_val1)
+				{
+					difference_ch1 = ch1_val2 - ch1_val1;
+				}
+				else if (ch1_val1 > ch1_val2)
+				{
+					difference_ch1 = (0xffffffff - ch1_val1) + ch1_val2;
+				}
+
+				frequency_ch1 = TIMCLOCK/(PRESCALAR)/difference_ch1;
+				dataDigital[0] = frequency_ch1;
+				HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_1);
+				flag_ch1 = 0;
+			}
 		}
-
-		else   // If the first rising edge is captured, now we will capture the second edge
+		else
 		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  // read second value
-
-			if (IC_Val2 > IC_Val1)
-			{
-				Difference = IC_Val2-IC_Val1;
-			}
-
-			else if (IC_Val1 > IC_Val2)
-			{
-				Difference = (0xffffffff - IC_Val1) + IC_Val2;
-			}
-
-			float refClock = TIMCLOCK/(PRESCALAR);
-
-			frequency = refClock/Difference;
-			osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_1, 0);
-
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			Is_First_Captured = 0; // set it back to false
-		}
-	}
-
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
-	{
-		if (Is_First_Captured==0) // if the first rising edge is not captured
-		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
-		}
-
-		else   // If the first rising edge is captured, now we will capture the second edge
-		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);  // read second value
-
-			if (IC_Val2 > IC_Val1)
-			{
-				Difference = IC_Val2-IC_Val1;
-			}
-
-			else if (IC_Val1 > IC_Val2)
-			{
-				Difference = (0xffffffff - IC_Val1) + IC_Val2;
-			}
-
-			float refClock = TIMCLOCK/(PRESCALAR);
-
-			frequency = refClock/Difference;
-			osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_2, 0);
-
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			Is_First_Captured = 0; // set it back to false
+			counter_ch1++;
 		}
 	}
-
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
+	else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
 	{
-		if (Is_First_Captured==0) // if the first rising edge is not captured
+		if(digitalSettingList[1].mode[0] == 'F')
 		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
+			if (flag_ch2 == 0)
+			{
+				ch2_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+				flag_ch2 = 1;
+			}
+			else
+			{
+				ch2_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+
+				if (ch2_val2 > ch2_val1)
+				{
+					difference_ch2 = ch2_val2 - ch2_val1;
+				}
+				else if (ch2_val1 > ch2_val2)
+				{
+					difference_ch2 = (0xffffffff - ch2_val1) + ch2_val2;
+				}
+
+				frequency_ch2 = TIMCLOCK/(PRESCALAR)/difference_ch2;
+				dataDigital[1] = frequency_ch2;
+				HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_2);
+				flag_ch2 = 0;
+			}
 		}
-
-		else   // If the first rising edge is captured, now we will capture the second edge
+		else
 		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);  // read second value
-
-			if (IC_Val2 > IC_Val1)
-			{
-				Difference = IC_Val2-IC_Val1;
-			}
-
-			else if (IC_Val1 > IC_Val2)
-			{
-				Difference = (0xffffffff - IC_Val1) + IC_Val2;
-			}
-
-			float refClock = TIMCLOCK/(PRESCALAR);
-
-			frequency = refClock/Difference;
-			osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_3, 0);
-
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			Is_First_Captured = 0; // set it back to false
+			counter_ch2++;
 		}
 	}
-
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+	else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
 	{
-		if (Is_First_Captured==0) // if the first rising edge is not captured
+		if(digitalSettingList[2].mode[0] == 'F')
 		{
-			IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4); // read the first value
-			Is_First_Captured = 1;  // set the first captured as true
+			if (flag_ch3 == 0)
+			{
+				ch3_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+				flag_ch3 = 1;
+			}
+			else
+			{
+				ch3_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_3);
+
+				if (ch3_val2 > ch3_val1)
+				{
+					difference_ch3 = ch3_val2 - ch3_val1;
+				}
+				else if (ch3_val1 > ch3_val2)
+				{
+					difference_ch3 = (0xffffffff - ch3_val1) + ch3_val2;
+				}
+
+				frequency_ch3 = TIMCLOCK/(PRESCALAR)/difference_ch3;
+				dataDigital[2] = frequency_ch3;
+				HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_3);
+				flag_ch3 = 0;
+			}
 		}
-
-		else   // If the first rising edge is captured, now we will capture the second edge
+		else
 		{
-			IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);  // read second value
-
-			if (IC_Val2 > IC_Val1)
+			counter_ch3++;
+		}
+	}
+	else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
+	{
+		if(digitalSettingList[2].mode[3] == 'F')
+		{
+			if (flag_ch4 == 0)
 			{
-				Difference = IC_Val2-IC_Val1;
+				ch4_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
+				flag_ch4 = 1;
 			}
-
-			else if (IC_Val1 > IC_Val2)
+			else
 			{
-				Difference = (0xffffffff - IC_Val1) + IC_Val2;
+				ch4_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_4);
+
+				if (ch4_val2 > ch4_val1)
+				{
+					difference_ch4 = ch4_val2 - ch4_val1;
+				}
+				else if (ch4_val1 > ch4_val2)
+				{
+					difference_ch4 = (0xffffffff - ch4_val1) + ch4_val2;
+				}
+
+				frequency_ch4 = TIMCLOCK/(PRESCALAR)/difference_ch4;
+				dataDigital[3] = frequency_ch4;
+				HAL_TIM_IC_Stop_IT(&htim3, TIM_CHANNEL_4);
+				flag_ch4 = 0;
 			}
-
-			float refClock = TIMCLOCK/(PRESCALAR);
-
-			frequency = refClock/Difference;
-			osMessagePut(digitalQueueHandle, APP_E_DIGITAL_CHANNEL_4, 0);
-
-			__HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-			Is_First_Captured = 0; // set it back to false
+		}
+		else
+		{
+			counter_ch4++;
 		}
 	}
 }

@@ -12,6 +12,7 @@
 #include "cmsis_os.h"
 
 char* Get_SerialData(void);
+char* Get_SerialName(void);
 void vProcessSerialChannel(uint8_t u8Channel);
 void Serial_Setup_Timer(void);
 void SerialSensor_Task(void const * argument);

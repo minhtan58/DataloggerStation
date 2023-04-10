@@ -37,8 +37,9 @@
 #include "command_process.h"
 #include "usb_device.h"
 #include "sensor_process.h"
+#include "sdi12.h"
 /* Private typedef -----------------------------------------------------------*/
-
+extern SDI12_TypeDef sdi12;
 /* Private define ------------------------------------------------------------*/
 
 #ifndef HSEM_ID_0
@@ -80,7 +81,7 @@ int main(void)
 	while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) != RESET) && (timeout-- > 0));
 	if ( timeout < 0 )
 	{
-		Error_Handler();
+//		Error_Handler();
 	}
 	/* MCU Configuration--------------------------------------------------------*/
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -102,7 +103,7 @@ int main(void)
 	while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
 	if ( timeout < 0 )
 	{
-		Error_Handler();
+//		Error_Handler();
 	}
 
 	MX_GPIO_Init();
@@ -117,25 +118,29 @@ int main(void)
 	MX_FATFS_Init();
 	MX_DMA_Init();
 	MX_USB_DEVICE_Init();
-
-	osThreadDef(defaultTask, Network_Task, osPriorityAboveNormal, 0, 1024);
-	NetWorkTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-	osThreadDef(SerialPortComTask, SerialPortCom_Task, osPriorityNormal, 0, 512);
-	SerialPortComTaskHandle = osThreadCreate(osThread(SerialPortComTask), NULL);
-
-	osThreadDef(LCDTask, Lcd_Task, osPriorityBelowNormal, 0, 512);
-	LCDTaskHandle = osThreadCreate(osThread(LCDTask), NULL);
+	MX_UART7_Init();
+	printf("The value of num111 is\n\r");
+//	osThreadDef(SerialPortComTask, SerialPortCom_Task, osPriorityNormal, 0, 512);
+//	SerialPortComTaskHandle = osThreadCreate(osThread(SerialPortComTask), NULL);
+//
+//	osThreadDef(defaultTask, Network_Task, osPriorityAboveNormal, 0, 1024);
+//	NetWorkTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+//
+//	osThreadDef(LCDTask, Lcd_Task, osPriorityBelowNormal, 0, 512);
+//	LCDTaskHandle = osThreadCreate(osThread(LCDTask), NULL);
 
 	osThreadDef(AnalogSensorTask, AnalogSensor_Task, osPriorityBelowNormal, 0, 512);
 	AnalogSensorTaskHandle = osThreadCreate(osThread(AnalogSensorTask), NULL);
 
-	osThreadDef(SerialSensorTask, SerialSensor_Task, osPriorityBelowNormal, 0, 512);
-	SerialSensorTaskHandle = osThreadCreate(osThread(SerialSensorTask), NULL);
+//	osThreadDef(SerialSensorTask, SerialSensor_Task, osPriorityBelowNormal, 0, 512);
+//	SerialSensorTaskHandle = osThreadCreate(osThread(SerialSensorTask), NULL);
 
 	osKernelStart();
 
-	while(1){}
+
+	while(1){
+
+	}
 }
 
 /**
@@ -258,7 +263,10 @@ void Error_Handler(void)
 {
 	/* User can add his own implementation to report the HAL error return state */
 //	__disable_irq();
-//	while (1){}
+//	while (1){
+//		HAL_GPIO_TogglePin(GPIOI, GPIO_PIN_5);
+//		osDelay(100);
+//	}
 }
 
 #ifdef  USE_FULL_ASSERT

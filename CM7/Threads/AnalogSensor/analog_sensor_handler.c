@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "analog_sensor_handler.h"
 #include "ADS124S08.h"
 #include "cmsis_os.h"
@@ -39,36 +40,54 @@ void PTCallback12(void const * argument);
 osMessageQId analogQueueHandle;
 osTimerId periodicTimerHandle[12];
 extern tsAnalogSensor analogSettingList[12];
-extern volatile float fAnalogDataList[12];
 
-char dataAnalogUsed[50];
+char dataAnalogUsed[120];
 /****************************************************************************/
 /***    Implementation                          */
 /****************************************************************************/
 
 void Analog_setup()
 {
-	for(int i = 0; i < 12; i++)
-	{
-		if(analogSettingList[i].status[0] == 'E')
-			osTimerStart(periodicTimerHandle[i], atoi(analogSettingList[i].interval)*1000);
-		else
-			osTimerStop(periodicTimerHandle[i]);
-	}
+//	for(int i = 0; i < 12; i++)
+//	{
+//		if(analogSettingList[i].status[0] == 'E')
+//			osTimerStart(periodicTimerHandle[i], atoi(analogSettingList[i].interval)*1000);
+//		else
+//			osTimerStop(periodicTimerHandle[i]);
+//	}
+	printf("The value of num111 is\n\r");
+	osTimerStart(periodicTimerHandle[0], 5000);
+	osTimerStart(periodicTimerHandle[1], 12000);
 }
 
 char* Get_AnalogData(void)
 {
-	uint8_t length = 0;
-	memset(dataAnalogUsed, 0, 50);
+	char buffer[8];
+	uint8_t ndigit = 0;
 
-	for(int i = 0; i < 12; i++)
+	memset(dataAnalogUsed, 0, 120);
+
+	for(uint8_t i = 0; i < 12; i++)
 	{
-		if(strcmp("Enabled", analogSettingList[i].status) == 0)
+		if(analogSettingList[i].status[0] == 'E')
 		{
-			length += sprintf(dataAnalogUsed+length,";%.2f", fAnalogDataList[i]);
+			ndigit = lenHelper((int)analogSettingList[i].value) + atoi(analogSettingList[i].rightDigit) + 3;
+			snprintf(buffer, ndigit, ";%f", analogSettingList[i].value);
+			strcat(dataAnalogUsed, buffer);
 		}
 	}
+	return dataAnalogUsed;
+}
+
+char* Get_AnalogName(void)
+{
+	memset(dataAnalogUsed, 0, 120);
+	for(uint8_t i = 0; i < 12; i++)
+		if(analogSettingList[i].status[0] == 'E') {
+			strcat(dataAnalogUsed, ";");
+			strcat(dataAnalogUsed, &analogSettingList[i].name[0]);
+		}
+
 	return dataAnalogUsed;
 }
 
@@ -129,65 +148,65 @@ void AnalogSensor_Task(void const * argument)
 				case APP_E_ANALOG_CHANNEL_1:
 					//printf("APP_E_ANALOG_CHANNEL_1\n\r");
 					fdata = Getdata_ADC(CHANNEL_0_EN);
+					printf("The value of num111 is %.2f\n\r", fdata);
 					/* Formula: Result = Vin*Slope + Offset */
-					fAnalogDataList[0] = (fdata*atoi(analogSettingList[0].slope)) + atoi(analogSettingList[0].offset);
-
+					analogSettingList[0].value = (fdata*atoi(analogSettingList[0].slope)) + atoi(analogSettingList[0].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_2:
 					//printf("APP_E_ANALOG_CHANNEL_2\n\r");
 					fdata = Getdata_ADC(CHANNEL_1_EN);
-					fAnalogDataList[1] = (fdata*atoi(analogSettingList[1].slope))+ atoi(analogSettingList[1].offset);
-
+					printf("The value of num222 is %.2f\n\r", fdata);
+					analogSettingList[1].value = (fdata*atoi(analogSettingList[1].slope))+ atoi(analogSettingList[1].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_3:
 					//printf("APP_E_ANALOG_CHANNEL_3\n\r");
 					fdata = Getdata_ADC(CHANNEL_2_EN);
-					fAnalogDataList[2] = (fdata*atoi(analogSettingList[2].slope))+ atoi(analogSettingList[2].offset);
+					analogSettingList[2].value = (fdata*atoi(analogSettingList[2].slope))+ atoi(analogSettingList[2].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_4:
 					//printf("APP_E_ANALOG_CHANNEL_4\n\r");
 					fdata = Getdata_ADC(CHANNEL_3_EN);
-					fAnalogDataList[3] = (fdata*atoi(analogSettingList[3].slope))+ atoi(analogSettingList[3].offset);
+					analogSettingList[3].value = (fdata*atoi(analogSettingList[3].slope))+ atoi(analogSettingList[3].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_5:
 					//printf("APP_E_ANALOG_CHANNEL_5\n\r");
 					fdata = Getdata_ADC(CHANNEL_4_EN);
-					fAnalogDataList[4] = (fdata*atoi(analogSettingList[4].slope))+ atoi(analogSettingList[4].offset);
+					analogSettingList[4].value = (fdata*atoi(analogSettingList[4].slope))+ atoi(analogSettingList[4].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_6:
 					//printf("APP_E_ANALOG_CHANNEL_6\n\r");
 					fdata = Getdata_ADC(CHANNEL_5_EN);
-					fAnalogDataList[5] = (fdata*atoi(analogSettingList[5].slope))+ atoi(analogSettingList[5].offset);
+					analogSettingList[5].value = (fdata*atoi(analogSettingList[5].slope))+ atoi(analogSettingList[5].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_7:
 					//printf("APP_E_ANALOG_CHANNEL_7\n\r");
 					fdata = Getdata_ADC(CHANNEL_6_EN);
-					fAnalogDataList[6] = (fdata*atoi(analogSettingList[6].slope))+ atoi(analogSettingList[6].offset);
+					analogSettingList[6].value = (fdata*atoi(analogSettingList[6].slope))+ atoi(analogSettingList[6].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_8:
 					//printf("APP_E_ANALOG_CHANNEL_8\n\r");
 					fdata = Getdata_ADC(CHANNEL_7_EN);
-					fAnalogDataList[7] = (fdata*atoi(analogSettingList[7].slope))+ atoi(analogSettingList[7].offset);
+					analogSettingList[7].value = (fdata*atoi(analogSettingList[7].slope))+ atoi(analogSettingList[7].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_9:
 					//printf("APP_E_ANALOG_CHANNEL_9\n\r");
 					fdata = Getdata_ADC(CHANNEL_8_EN);
-					fAnalogDataList[8] = (fdata*atoi(analogSettingList[8].slope))+ atoi(analogSettingList[8].offset);
+					analogSettingList[8].value = (fdata*atoi(analogSettingList[8].slope))+ atoi(analogSettingList[8].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_10:
 					//printf("APP_E_ANALOG_CHANNEL_10\n\r");
 					fdata = Getdata_ADC(CHANNEL_9_EN);
-					fAnalogDataList[9] = (fdata*atoi(analogSettingList[9].slope))+ atoi(analogSettingList[9].offset);
+					analogSettingList[9].value = (fdata*atoi(analogSettingList[9].slope))+ atoi(analogSettingList[9].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_11:
 					//printf("APP_E_ANALOG_CHANNEL_11\n\r");
 					fdata = Getdata_ADC(CHANNEL_10_EN);
-					fAnalogDataList[10] = (fdata*atoi(analogSettingList[10].slope))+ atoi(analogSettingList[10].offset);
+					analogSettingList[10].value = (fdata*atoi(analogSettingList[10].slope))+ atoi(analogSettingList[10].offset);
 					break;
 				case APP_E_ANALOG_CHANNEL_12:
 					//printf("APP_E_ANALOG_CHANNEL_12\n\r");
 					fdata = Getdata_ADC(CHANNEL_11_EN);
-					fAnalogDataList[11] = (fdata*atoi(analogSettingList[11].slope))+ atoi(analogSettingList[11].offset);
+					analogSettingList[11].value = (fdata*atoi(analogSettingList[11].slope))+ atoi(analogSettingList[11].offset);
 					//printf("data = %lu\n\r", (unsigned long)data);
 					break;
 				default:
@@ -257,4 +276,16 @@ void PTCallback11(void const * argument)
 void PTCallback12(void const * argument)
 {
 	osMessagePut(analogQueueHandle, APP_E_ANALOG_CHANNEL_12, 0);
+}
+
+uint8_t lenHelper(uint32_t number)
+{
+    if (number >= 1000)
+    	return 4;
+    else if (number >= 100)
+    	return 3;
+    else if (number >= 10)
+    	return 2;
+    else
+    	return 1;
 }

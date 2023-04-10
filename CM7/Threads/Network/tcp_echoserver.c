@@ -38,11 +38,14 @@
 #include "lwip/debug.h"
 #include "lwip/stats.h"
 #include "lwip/tcp.h"
+#include "cmsis_os.h"
+#include "enums.h"
 
 #if LWIP_TCP
 
 static struct tcp_pcb *tcp_echoserver_pcb;
-
+u8_t recev_config[255];
+extern osMessageQId NetworkQueueHandle;
 /* ECHO protocol states */
 enum tcp_echoserver_states
 {
@@ -218,8 +221,10 @@ static err_t tcp_echoserver_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
     tcp_sent(tpcb, tcp_echoserver_sent);
 
     /* send back the received data (echo) */
-    tcp_echoserver_send(tpcb, es);
+    //tcp_echoserver_send(tpcb, es);
 
+//    memcpy(&recev_config, p->payload, p->len);
+    osMessagePut(NetworkQueueHandle, APP_E_NETWORK_SERVER_REV_DATA, 0);
     ret_err = ERR_OK;
   }
   else if (es->state == ES_RECEIVED)
@@ -227,10 +232,12 @@ static err_t tcp_echoserver_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p
     /* more data received from client and previous data has been already sent*/
     if(es->p == NULL)
     {
-      es->p = p;
+      //es->p = p;
 
       /* send back received data */
-      tcp_echoserver_send(tpcb, es);
+ //     tcp_echoserver_send(tpcb, es);
+//      memcpy(&recev_config, p->payload, p->len);
+//      osMessagePut(NetworkQueueHandle, APP_E_NETWORK_SERVER_REV_DATA, 0);
     }
     else
     {

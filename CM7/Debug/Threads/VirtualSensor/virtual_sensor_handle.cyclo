@@ -1,0 +1,4 @@
+virtual_sensor_handle.c:23:6:Virtual_setup	3
+virtual_sensor_handle.c:33:6:VirtualSensor_Task	2
+virtual_sensor_handle.c:151:6:virtualPTCallback	1
+virtual_sensor_handle.c:159:6:virtualOSCallback	1

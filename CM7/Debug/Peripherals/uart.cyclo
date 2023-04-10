@@ -1,0 +1,11 @@
+uart.c:40:5:__io_putchar	1
+uart.c:48:6:MX_UART4_Init	10
+uart.c:96:6:MX_UART5_Init	10
+uart.c:144:6:MX_UART7_Init	6
+uart.c:195:6:MX_UART8_Init	5
+uart.c:239:6:MX_USART1_UART_Init	9
+uart.c:287:6:MX_USART2_UART_Init	9
+uart.c:335:6:MX_USART3_UART_Init	5
+uart.c:379:6:MX_USART6_UART_Init	9
+uart.c:426:6:HAL_UART_MspInit	17
+uart.c:736:6:HAL_UART_MspDeInit	9

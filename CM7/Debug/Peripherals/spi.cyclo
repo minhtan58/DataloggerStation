@@ -1,0 +1,4 @@
+spi.c:34:6:MX_SPI4_Init	2
+spi.c:71:6:MX_SPI5_Init	2
+spi.c:106:6:HAL_SPI_MspInit	7
+spi.c:233:6:HAL_SPI_MspDeInit	3

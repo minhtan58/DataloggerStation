@@ -15,6 +15,7 @@
 #include "command_process.h"
 #include "sensor_process.h"
 #include "sdcard.h"
+#include "lwip.h"
 
 #define END_DATA_CONF       33 // !
 
@@ -37,6 +38,15 @@ volatile uint8_t UART8_RxBuffer;
 extern FILINFO fno;
 extern FIL myfile;
 extern FATFS FatFs;
+extern UINT br, bw;
+
+extern struct netif gnetif;
+extern ip4_addr_t ipaddr;
+extern ip4_addr_t netmask;
+extern ip4_addr_t gw;
+extern uint8_t IP_ADDRESS[4];
+extern uint8_t NETMASK_ADDRESS[4];
+extern uint8_t GATEWAY_ADDRESS[4];
 
 void Setting_channel(uint8_t channel)
 {
@@ -89,8 +99,9 @@ void Setting_channel(uint8_t channel)
 		{
 			if(strcmp("Enabled", serialSettingList[4].status) == 0)
 			{
+				printf("OK1\r\n");
 				MX_USART2_UART_Init();
-				HAL_UART_Receive_IT(&huart2, (uint8_t*)&UART6_RxBuffer, 1);
+				HAL_UART_Receive_IT(&huart2, (uint8_t*)&UART2_RxBuffer, 1);
 			}else{
 				HAL_NVIC_DisableIRQ(USART2_IRQn);
 			}
@@ -101,9 +112,9 @@ void Setting_channel(uint8_t channel)
 			if(strcmp("Enabled", serialSettingList[5].status) == 0)
 			{
 				MX_UART7_Init();
-				HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
+//				HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
 			}else{
-				HAL_NVIC_DisableIRQ(UART7_IRQn);
+//				HAL_NVIC_DisableIRQ(UART7_IRQn);
 			}
 		}
 		break;
@@ -136,13 +147,14 @@ void UART_Init(void)
 	}
 	if(strcmp("Enabled", serialSettingList[4].status) == 0)
 	{
+		printf("OK2\r\n");
 		MX_USART2_UART_Init();
 		HAL_UART_Receive_IT(&huart2, (uint8_t*)&UART2_RxBuffer, 1);
 	}
 	if(strcmp("Enabled", serialSettingList[5].status) == 0)
 	{
 		MX_UART7_Init();
-		HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
+//		HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
 	}
 }
 
@@ -153,36 +165,81 @@ void SerialPortCom_Task(void const * argument)
 	osMessageQDef(myQueue01, 16, uint16_t);
 	SerialQueueHandle = osMessageCreate(osMessageQ(myQueue01), NULL);
 
-//	uint8_t rc;
-//	f_mount(&FatFs,"",1);
-//	rc = f_stat(fileConfig, &fno);
-//	f_mount(&FatFs,"",0);
-//	if (rc == FR_OK) {
-//		// read data from mmc
-//		printf("Ton tai\r\n");
-//		HME_ReadMemory(fileConfig, &overview, sizeof(tsOverview), BASE_ADD_OVERVIEW);
-//		HME_ReadMemory(fileConfig, &setting, sizeof(tsSetting), BASE_ADD_SYSTEM);
-//
-//		for (rc = 0; rc < 12; rc++)
-//			HME_ReadMemory(fileConfig, &analogSettingList[rc], sizeof(tsAnalogSensor), BASE_ADD_ANALOG + (rc*SIZE_ANALOG_T));
-//		for (rc = 0; rc < 6; rc++) {
-//			HME_ReadMemory(fileConfig, &digitalSettingList[rc], sizeof(tsDigitalSensor), BASE_ADD_DIGITAL + (rc*SIZE_DIGITAL_T));
-//			HME_ReadMemory(fileConfig, &serialSettingList[rc], sizeof(tsConfig_SerialSensor), BASE_ADD_SERIAL + (rc*SIZE_SERIAL_T));
-//		}
-//		for (rc = 0; rc < 15; rc++)
-//			HME_ReadMemory(fileConfig, &virtualSensorList[rc], sizeof(tsVirtualSensor), BASE_ADD_VIRTUAL + (rc*SIZE_VIRTUAL_T));
-//
-//		HME_ReadMemory(fileConfig, &transmission, sizeof(tsTransmission), BASE_ADD_TRANSMISSION);
-//		HME_ReadMemory(fileConfig, &cellular, sizeof(tsCellular), BASE_ADD_CELLULAR);
-//		HME_ReadMemory(fileConfig, &u8SorttingChannel, sizeof(char)*50, BASE_ADD_CHANNEL_SORT);
-//	}
-//	else
-//	{
-//		appStartRountine();
-//	}
+	strcpy(&fileConfig[0], (char*)"setup21.txt");
+	strcpy(&fileData[0], "dicom.txt");
+	strcpy(&filePathConfig[0], "/public_html/DATA/");
 
-	appStartRountine();
+	uint8_t rc;
+	f_mount(&FatFs,"",1);
+	rc = f_stat(fileConfig, &fno);
+	f_mount(&FatFs,"",0);
+	if (rc == FR_OK) {
+		// read data from mmc
+//		printf("Ton tai\r\n");
+		f_mount(&FatFs,"",1);
+		f_open(&myfile, fileConfig, FA_READ | FA_OPEN_EXISTING);
+
+    	f_lseek(&myfile, BASE_ADD_OVERVIEW);
+    	f_read(&myfile, &overview, sizeof(tsOverview), &br);
+    	osDelay(5);
+
+    	f_lseek(&myfile, BASE_ADD_SYSTEM);
+    	f_read(&myfile, &setting, sizeof(tsSetting), &br);
+    	osDelay(5);
+
+//        GetIPConverted(&setting.ipAddress[0], &IP_ADDRESS[0]);
+//        GetIPConverted(&setting.subnetMask[0], &NETMASK_ADDRESS[0]);
+//        GetIPConverted(&setting.gateway[0], &GATEWAY_ADDRESS[0]);
+//        IP4_ADDR(&ipaddr, IP_ADDRESS[0], IP_ADDRESS[1], IP_ADDRESS[2], IP_ADDRESS[3]);
+//        IP4_ADDR(&netmask, NETMASK_ADDRESS[0], NETMASK_ADDRESS[1] , NETMASK_ADDRESS[2], NETMASK_ADDRESS[3]);
+//        IP4_ADDR(&gw, GATEWAY_ADDRESS[0], GATEWAY_ADDRESS[1], GATEWAY_ADDRESS[2], GATEWAY_ADDRESS[3]);
+//        netif_set_ipaddr(&gnetif, &ipaddr);
+//        netif_set_netmask(&gnetif, &netmask);
+//        netif_set_gw(&gnetif, &gw);
+
+		for (rc = 0; rc < 12; rc++) {
+	    	f_lseek(&myfile, BASE_ADD_ANALOG + (rc*SIZE_ANALOG_T));
+	    	f_read(&myfile, &analogSettingList[rc], sizeof(tsAnalogSensor), &br);
+	    	osDelay(5);
+		}
+		for (rc = 0; rc < 6; rc++) {
+	    	f_lseek(&myfile, BASE_ADD_DIGITAL + (rc*SIZE_DIGITAL_T));
+	    	f_read(&myfile, &digitalSettingList[rc], sizeof(tsDigitalSensor), &br);
+	    	osDelay(5);
+
+	    	f_lseek(&myfile, BASE_ADD_SERIAL + (rc*SIZE_SERIAL_T));
+	    	f_read(&myfile, &serialSettingList[rc], sizeof(tsConfig_SerialSensor), &br);
+	    	osDelay(5);
+		}
+		for (rc = 0; rc < 15; rc++) {
+	    	f_lseek(&myfile, BASE_ADD_VIRTUAL + (rc*SIZE_VIRTUAL_T));
+	    	f_read(&myfile, &virtualSensorList[rc], sizeof(tsVirtualSensor), &br);
+	    	osDelay(5);
+		}
+
+    	f_lseek(&myfile, BASE_ADD_TRANSMISSION);
+    	f_read(&myfile,  &transmission, sizeof(tsTransmission), &br);
+    	osDelay(5);
+
+    	f_lseek(&myfile, BASE_ADD_CELLULAR);
+    	f_read(&myfile,  &cellular, sizeof(tsCellular), &br);
+    	osDelay(5);
+
+//    	f_lseek(&myfile, BASE_ADD_CHANNEL_SORT);
+//    	f_read(&myfile,  &u8SorttingChannel, sizeof(char)*50, &br);
+//    	osDelay(5);
+
+       	f_close(&myfile);
+       	f_mount(&FatFs,"",0);
+	}
+	else
+	{
+		appStartRountine();
+	}
+
+//	appStartRountine();
 	UART_Init();
+    Serial_Setup_Timer();
 	HAL_UART_Receive_IT(&huart3, (uint8_t*)&UART3_RxBuffer, 1);
 
 	while(1)
@@ -274,8 +331,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 	else if(huart->Instance == huart7.Instance)
 	{
-		vProcessRxChar(UART7_RxBuffer, E_SERIAL_CHANNEL_SDI12);
-		HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
+//		vProcessRxChar(UART7_RxBuffer, E_SERIAL_CHANNEL_SDI12);
+//		HAL_UART_Receive_IT(&huart7, (uint8_t*)&UART7_RxBuffer, 1);
 	}
 	else if(huart->Instance == huart8.Instance)
 	{

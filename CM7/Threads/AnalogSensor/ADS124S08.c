@@ -49,14 +49,14 @@ void WriteReg(uint8_t regnum, uint8_t data)
 	ulDataRx[0] = 0;
 	ulDataTx[0] = 0;
 
-	ulDataTx[0] = REGWR_OPCODE_MASK + (regnum & 0x1f);   // Register address
+	ulDataTx[0] = REGWR_OPCODE_MASK + (regnum & 0x1f);   	// Register address
 	spi_wr_data(&hspi4, ulDataTx, ulDataRx);
 
 	ulDataTx[0] = 0x00;
-	spi_wr_data(&hspi4, ulDataTx, ulDataRx);                      // Lend data
+	spi_wr_data(&hspi4, ulDataTx, ulDataRx);             	// Lend data
 
 	ulDataTx[0] = data;
-	spi_wr_data(&hspi4, ulDataTx, ulDataRx);						 // data
+	spi_wr_data(&hspi4, ulDataTx, ulDataRx);				// data
 
 }
 
@@ -83,32 +83,32 @@ void sendCommand(uint8_t op_code)
  */
 uint32_t dataRead()
 {
-		uint32_t result = 0;
-		uint8_t ulDataTx[1],ulDataRx[1];
-		ulDataTx[0] = 0x00;
-		ulDataRx[0] = 0x00;
+	uint32_t result = 0;
+	uint8_t ulDataTx[1],ulDataRx[1];
+	ulDataTx[0] = 0x00;
+	ulDataRx[0] = 0x00;
 
-		// according to datasheet chapter 9.5.4.2 Read Data by RDATA Command
-		sendCommand(RDATA_OPCODE_MASK);
+	// according to datasheet chapter 9.5.4.2 Read Data by RDATA Command
+	sendCommand(RDATA_OPCODE_MASK);
 
-		ulDataTx[0] = 0x00;
-		ulDataRx[0] = 0x00;
-		// get the conversion data (3 bytes)
-		spi_wr_data(&hspi4, ulDataTx, ulDataRx);
-		result = ulDataRx[0];
+	ulDataTx[0] = 0x00;
+	ulDataRx[0] = 0x00;
+	// get the conversion data (3 bytes)
+	spi_wr_data(&hspi4, ulDataTx, ulDataRx);
+	result = ulDataRx[0];
 
 
-		ulDataTx[0] = 0x00;
-		ulDataRx[0] = 0x00;
-		spi_wr_data(&hspi4, ulDataTx, ulDataRx);
-		result = (result << 8) + ulDataRx[0];
+	ulDataTx[0] = 0x00;
+	ulDataRx[0] = 0x00;
+	spi_wr_data(&hspi4, ulDataTx, ulDataRx);
+	result = (result << 8) + ulDataRx[0];
 
-		ulDataTx[0] = 0x00;
-		ulDataRx[0] = 0x00;
-		spi_wr_data(&hspi4, ulDataTx, ulDataRx);
-		result = (result << 8) + ulDataRx[0];
+	ulDataTx[0] = 0x00;
+	ulDataRx[0] = 0x00;
+	spi_wr_data(&hspi4, ulDataTx, ulDataRx);
+	result = (result << 8) + ulDataRx[0];
 
-		return (result);
+	return (result);
 }
 
 /*
@@ -119,11 +119,7 @@ uint32_t dataRead()
 
 uint8_t InitDevice_ADC()
 {
-	HAL_Delay(10);
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);		/*	PA11 ----> NCC	*/
-//	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);		/*	PD12 ----> ADC_RESET	*/
-//	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);		/*	PD13 ----> ADC_START	*/
-
+	osDelay(10);
 
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4, GPIO_PIN_RESET);		/*	PA11 ----> NCC	*/
 	HAL_GPIO_WritePin(GPIOI, GPIO_PIN_9, GPIO_PIN_SET);			/*	PD12 ----> ADC_RESET	*/
@@ -152,8 +148,7 @@ uint8_t InitDevice_ADC()
 	registers[FSCAL2_ADDR_MASK] 	= 0x40;
 	registers[GPIODAT_ADDR_MASK] 	= 0xF0;
 	registers[GPIOCON_ADDR_MASK]	= 0x00;
-
-	HAL_Delay(10);
+	osDelay(10);
 
 	if( regRead(0x1) == 0x80 )
 	{
@@ -166,7 +161,7 @@ uint8_t InitDevice_ADC()
 		WriteReg(i, registers[i]);
 	}
 
-	HAL_Delay(10);
+	osDelay(10);
 	sendCommand(START_OPCODE_MASK);
 	return 1;
 
@@ -180,12 +175,11 @@ double Getdata_ADC(uint8_t chanel_an)
 	sendCommand(STOP_OPCODE_MASK);
 	WriteReg(INPMUX_ADDR_MASK, chanel_an);
 	sendCommand(START_OPCODE_MASK);
-	HAL_Delay(100);
+	osDelay(100);
 
 	temp_an = dataRead();
 
-//	printf("temp_an = %lu\n\r", (unsigned long)temp_an);
+	//printf("temp_an = %lu\n\r", (unsigned long)temp_an);
 	data_an = (double) temp_an/DEVIDER_DATA;
 	return data_an;
-
 }

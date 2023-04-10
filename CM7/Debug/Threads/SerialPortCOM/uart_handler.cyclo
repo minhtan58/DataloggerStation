@@ -1,0 +1,6 @@
+uart_handler.c:51:6:Setting_channel	13
+uart_handler.c:126:6:UART_Init	7
+uart_handler.c:161:6:SerialPortCom_Task	14
+uart_handler.c:287:6:vProcessRxChar	5
+uart_handler.c:300:6:HAL_UART_RxCpltCallback	9
+uart_handler.c:347:6:GetIPConverted	3
